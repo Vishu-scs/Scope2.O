@@ -59,67 +59,146 @@ try {
 }
 
 }
-const uploadSchedule = async (req, res) => {
-  const pool = getPool(); 
+  // const uploadSchedule = async (req, res) => {
+  //   const pool = getPool(); 
 
-  try {
-    const { dashboardcode, brandid,brand,dealer, dealerid, scheduledon, addedby } = req.body;
+  //   try {
+  //     const { dashboardcodes, brandid,brand,dealer, dealerid, scheduledon, addedby } = req.body;
 
-    // Validate required fields
-    if (!dashboardcode || !brandid || !brand || !dealer || !dealerid || !scheduledon || !addedby) {
-      return res.status(400).json({ error: "All fields are required." });
-    }
+  //     if (!dashboardcodes || !Array.isArray(dashboardcodes) || dashboardcodes.length === 0) {
+  //       return res.status(400).json({ error: "At least one dashboardcode is required." });
+  //     }
+  //     // Validate required fields
+  //     if (!brandid || !brand || !dealer || !dealerid || !scheduledon || !addedby) {
+  //       return res.status(400).json({ error: "All fields are required." });
+  //     }
 
-    // Parse and validate the `scheduledon` field
-    const scheduledDate = new Date(scheduledon);
-    if (isNaN(scheduledDate.getTime())) {
-      return res.status(400).json({ error: "Invalid date format for 'scheduledon'." });
-    }
+  //     // Parse and validate the `scheduledon` field
+  //     const scheduledDate = new Date(scheduledon);
+  //     if (isNaN(scheduledDate.getTime())) {
+  //       return res.status(400).json({ error: "Invalid date format for 'scheduledon'." });
+  //     }
 
-    // Check if the date is at least 24 hours in the future
-    const currentDate = new Date();
-    const futureThreshold = new Date(currentDate.getTime() + 24 * 60 * 60 * 1000); // 24 hours from now
-    if (scheduledDate <= futureThreshold) {
-      return res.status(400).json({
-        error: "Scheduled date must be at least 24 hours after the current date.",
-      });
-    }
-     // Here is to be Validated
-      const isDataValid  = await dataValidator(dealerid)
-      console.log(isDataValid);
+  //     // Check if the date is at least 24 hours in the future
+  //     const currentDate = new Date();
+  //     const futureThreshold = new Date(currentDate.getTime() + 24 * 60 * 60 * 1000); // 24 hours from now
+  //     if (scheduledDate <= futureThreshold) {
+  //       return res.status(400).json({
+  //         error: "Scheduled date must be at least 24 hours after the current date.",
+  //       });
+  //     }
+  //      // Here is to be Validated
+  //       const isDataValid  = await dataValidator(dealerid)
+  //       // console.log(isDataValid);
+        
+  //       if(isDataValid == true){
+
+        
+  //     // Query to insert data
       
-      if(isDataValid == true){
+        
+  //     // Execute the query
+  //     const request = await pool.request()
+  //     for(const dashboardcode of dashboardcodes){
+  //       const query = `use [norms]
+  //       INSERT INTO ScheduledDashboard (Dashboardcode, Brandid,Brand,Dealerid,Dealer,Scheduledon, addedby, addedon)
+  //       VALUES (@dashboardcode,@brandid,@brand,@dealerid, @dealer, @scheduledon, @addedby, GETDATE());
+  //     `;
+  //       await request
+  //       .input("dashboardcode", sql.Int, dashboardcode)
+  //       .input("brand", sql.VarChar, brand)
+  //       .input("brandid", sql.Int, brandid)
+  //       .input("dealer", sql.VarChar, dealer)
+  //       .input("dealerid", sql.Int, dealerid)
+  //       .input("scheduledon", sql.DateTime, scheduledDate)
+  //       .input("addedby", sql.Int, addedby)
+  //       .query(query);
+  //     }
+  //     console.log("Schedule successfully uploaded.");
+  //     res.status(201).json({ message: "Successfully Scheduled" });
+  //   }
+  //   else{
+  //     res.send(`Data for Dealer is not Updated`)
+  //   }
+  // } catch (error) {
+  //     console.error("Error uploading schedule:", error.message);
+  //     res.status(500).json({ error: "Internal Server Error", details: error.message });
+  //   }
+    
+  // };
 
-      
-    // Query to insert data
-    const query = `use [norms]
-      INSERT INTO ScheduledDashboard (Dashboardcode, Brandid,Brand,Dealerid,Dealer,Scheduledon, addedby, addedon)
-      VALUES (@dashboardcode,@brandid,@brand,@dealerid, @dealer, @scheduledon, @addedby, GETDATE());
-    `;
-      
-    // Execute the query
-    await pool.request()
-      .input("dashboardcode", sql.Int, dashboardcode)
-      .input("brand", sql.VarChar, brand)
-      .input("brandid", sql.Int, brandid)
-      .input("dealer", sql.VarChar, dealer)
-      .input("dealerid", sql.Int, dealerid)
-      .input("scheduledon", sql.DateTime, scheduledDate)
-      .input("addedby", sql.Int, addedby)
-      .query(query);
-
-    console.log("Schedule successfully uploaded.");
-    res.status(201).json({ message: "Successfully Scheduled" });
-  }
-  else{
-    res.send(`Data for Dealer is not Updated`)
-  }
-} catch (error) {
-    console.error("Error uploading schedule:", error.message);
-    res.status(500).json({ error: "Internal Server Error", details: error.message });
-  }
+  const uploadSchedule = async (req, res) => {
+    const pool = getPool();
   
-};
+    try {
+      const { dashboardcodes, brandid, brand, dealer, dealerid, scheduledon, addedby } = req.body;
+  
+      // Validate dashboardcodes as an array
+      let parsedDashboardCodes;
+      try {
+        parsedDashboardCodes = JSON.parse(JSON.stringify(dashboardcodes)); // Ensure it's a proper array
+        if (!Array.isArray(parsedDashboardCodes) || parsedDashboardCodes.length === 0) {
+          throw new Error("Invalid dashboardcodes format.");
+        }
+      } catch (err) {
+        return res.status(400).json({ error: "Invalid or missing dashboardcodes. It must be a JSON array." });
+      }
+  
+      // Validate other required fields
+      if (!brandid || !brand || !dealer || !dealerid || !scheduledon || !addedby) {
+        return res.status(400).json({ error: "All fields except dashboardcodes are required." });
+      }
+  
+      // Parse and validate the `scheduledon` field
+      const scheduledDate = new Date(scheduledon);
+      if (isNaN(scheduledDate.getTime())) {
+        return res.status(400).json({ error: "Invalid date format for 'scheduledon'." });
+      }
+  
+      // Check if the date is at least 24 hours in the future
+      const currentDate = new Date();
+      const futureThreshold = new Date(currentDate.getTime() + 24 * 60 * 60 * 1000); // 24 hours from now
+      if (scheduledDate <= futureThreshold) {
+        return res.status(400).json({
+          error: "Scheduled date must be at least 24 hours after the current date.",
+        });
+      }
+  
+      // Validate dealer data
+      const isDataValid = await dataValidator(dealerid);
+      console.log(isDataValid);
+  
+      if (!isDataValid) {
+        return res.status(400).send("Data for Dealer is not Updated");
+      }
+  
+      // Insert each dashboardcode into the database
+      for (const dashboardcode of parsedDashboardCodes) {
+        const query = ` use norms
+          INSERT INTO ScheduledDashboard (Dashboardcode, Brandid, Brand, Dealerid, Dealer, Scheduledon, Addedby, Addedon)
+          VALUES (@dashboardcode, @brandid, @brand, @dealerid, @dealer, @scheduledon, @addedby, GETDATE());
+        `;
+  
+        // Create a new SQL request for each iteration
+        await pool.request()
+          .input("dashboardcode", sql.Int, dashboardcode)  // Unique input for each iteration
+          .input("brand", sql.VarChar, brand)
+          .input("brandid", sql.Int, brandid)
+          .input("dealer", sql.VarChar, dealer)
+          .input("dealerid", sql.Int, dealerid)
+          .input("scheduledon", sql.DateTime, scheduledDate)
+          .input("addedby", sql.Int, addedby)
+          .query(query);
+      }
+  
+      console.log("Schedules successfully uploaded.");
+      res.status(201).json({ message: "Schedules Successfully Scheduled" });
+    } catch (error) {
+      console.error("Error uploading schedules:", error.message);
+      res.status(500).json({ error: "Internal Server Error", details: error.message });
+    }
+  };
+  
 
 const scheduleTask =   () => {
   cron.schedule('*/5 * * * *', async () => {
@@ -128,7 +207,7 @@ const scheduleTask =   () => {
           const pool = await getPool();
 
           // Fetch tasks to be executed
-          // status = 0 (when request in pending)
+          // status = 0 (when request is pending)
           const query = `use [norms]
                 SELECT reqid, dashboardcode, brand, brandid, dealer, dealerid, scheduledon
                 FROM scheduleddashboard where status = 0
