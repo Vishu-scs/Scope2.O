@@ -22,37 +22,116 @@ try {
     res.status(500).json({details:error.message})
 }
 }
-const getBrandsforDashboard = async(req,res)=>{
+// 
+// const getBrandsforDashboard = async (req, res) => {
+//   const pool = await getPool();
+//   try {
+//     const { DashboardCodes } = req.body;
+
+//     // Validate that DashboardCodes is an array and not empty
+//     if (!Array.isArray(DashboardCodes) || DashboardCodes.length === 0) {
+//       return res.status(400).json({ error: "DashboardCodes must be a non-empty array." });
+//     }
+
+//     // Construct a dynamic query with placeholders for each DashboardCode
+//     const placeholders = DashboardCodes.map((_, index) => `@DashboardCode${index}`).join(', ');
+//     const query = `
+//       USE [z_scope];
+//       SELECT li.brand, li.brandid
+//       FROM [dbo].[DB_DashboardLocMapping] dlm
+//       JOIN locationinfo li ON li.locationid = dlm.LocationID
+//       WHERE DashboardCode IN (${placeholders})
+//       GROUP BY brandid, brand
+//       ORDER BY BrandID;
+//     `;
+
+//     // Bind each DashboardCode to a parameter
+//     const request = pool.request();
+//     DashboardCodes.forEach((code, index) => {
+//       request.input(`DashboardCode${index}`, sql.Int, code);
+//     });
+
+//     const result = await request.query(query);
+
+//     // Respond with the result
+//     res.status(200).json({ Brands: result.recordset });
+//   } catch (error) {
+//     console.error("Error fetching brands for dashboard:", error.message);
+//     res.status(500).send(error.message);
+//   }
+// };
+const getBrandsforDashboard = async (req, res) => {
   const pool = await getPool();
   try {
-    const {DashboardCode}= req.body
-    const query = `use[z_scope] select li.brand ,li.brandid from [dbo].[DB_DashboardLocMapping] dlm
-                   join locationinfo li
-                   on li.locationid = dlm.LocationID
-                   where DashboardCode = @DashboardCode
-                   group by brandid , brand
-                   order by BrandID`
-                   
-    const result = await pool.request().input('DashboardCode',sql.Int,DashboardCode).query(query)
-    // console.log(result.recordset);
-    
-    res.status(200).json({Brands:result.recordset})
+    const { DashboardCode } = req.body;
+
+    // Validate that DashboardCodes is an array and not empty
+    if (!Array.isArray(DashboardCode) || DashboardCode.length === 0) {
+      return res.status(400).json({ error: "DashboardCodes must be a non-empty array." });
+    }
+
+    // Construct a dynamic query with placeholders for each DashboardCode
+    const placeholders = DashboardCode.map((_, index) => `@DashboardCode${index}`).join(', ');
+    const query = `
+      USE [z_scope];
+      SELECT li.brand, li.brandid
+      FROM [dbo].[DB_DashboardLocMapping] dlm
+      JOIN locationinfo li ON li.locationid = dlm.LocationID
+      WHERE dlm.DashboardCode IN (${placeholders})
+      GROUP BY li.brand, li.brandid
+      HAVING COUNT(DISTINCT dlm.DashboardCode) = @TotalDashboardCodes
+      ORDER BY li.brandid;
+    `;
+
+    // Bind each DashboardCode to a parameter
+    const request = pool.request();
+    DashboardCode.forEach((code, index) => {
+      request.input(`DashboardCode${index}`, sql.Int, code);
+    });
+
+    // Bind the total count of DashboardCodes
+    request.input("TotalDashboardCodes", sql.Int, DashboardCode.length);
+
+    const result = await request.query(query);
+
+    // Respond with the result
+    res.status(200).json({Brands:result.recordset });
   } catch (error) {
-    res.status(500).send(error.message)
+    console.error("Error fetching common brands for dashboards:", error.message);
+    res.status(500).send(error.message);
   }
-}
+};
+
 const getDealersforDashboard = async(req,res)=>{
 const pool = await getPool();
 try {
   const {DashboardCode,brandid} = req.body
-  const query =`use[z_scope] select li.Dealer ,li.DealerID from [dbo].[DB_DashboardLocMapping] dlm
-                join locationinfo li
-                on li.locationid = dlm.LocationID
-                where DashboardCode = @DashboardCode and Brandid = @brandid
-                group by DealerID , Dealer
-                order by Dealerid`
-  const result = await pool.request().input('brandid',sql.Int,brandid).input('DashboardCode',sql.Int,DashboardCode).query(query)
+
+  if (!Array.isArray(DashboardCode) || DashboardCode.length === 0) {
+    return res.status(400).json({ error: "DashboardCodes must be a non-empty array." });
+  }
+  const placeholders = DashboardCode.map((_, index) => `@DashboardCode${index}`).join(', ');
+  const query =`USE [z_scope];
+      SELECT li.dealer, li.dealerid
+      FROM [dbo].[DB_DashboardLocMapping] dlm
+      JOIN locationinfo li ON li.locationid = dlm.LocationID
+      WHERE dlm.DashboardCode IN (${placeholders}) and brandid = @brandid
+	  GROUP BY li.dealer, li.dealerid
+      HAVING COUNT(DISTINCT dlm.DashboardCode) = @TotalDashboardCodes 
+	  ORDER BY li.dealerid;`
+  // const result = await pool.request().input('brandid',sql.Int,brandid).input('DashboardCode',sql.Int,DashboardCode).query(query)
   // console.log(result.recordset);
+
+  const request = pool.request();
+    DashboardCode.forEach((code, index) => {
+      request.input(`DashboardCode${index}`, sql.Int, code);
+    });
+
+    // Bind the total count of DashboardCodes
+    request.input("TotalDashboardCodes", sql.Int, DashboardCode.length);
+
+    const result = await request.input('brandid',sql.Int,brandid).query(query);
+
   res.status(200).json({Dealers:result.recordset})
 } catch (error) {
   res.status(500).send(error.message)
@@ -200,55 +279,54 @@ try {
   };
   
 
-const scheduleTask =   () => {
+function scheduleTask() {
   cron.schedule('*/5 * * * *', async () => {
-      console.log("Running scheduler in every 5 minutes");
-      try {
-          const pool = await getPool();
+    console.log("Running scheduler in every 5 minutes")
+    try {
+      const pool = await getPool()
 
-          // Fetch tasks to be executed
-          // status = 0 (when request is pending)
-          const query = `use [norms]
+      // Fetch tasks to be executed
+      // status = 0 (when request is pending)
+      const query = `use [norms]
                 SELECT reqid, dashboardcode, brand, brandid, dealer, dealerid, scheduledon
                 FROM scheduleddashboard where status = 0
 
-          `;
-          const result = await pool.request().query(query);
-          const tasks = result.recordset;
-          if (Array.isArray(tasks) && !tasks.length){
-            console.log(`No request Scheduled in 5 minutes`);
-            
-          }
-          else{
-            console.log(tasks);
-          }
-          
+          `
+      const result = await pool.request().query(query)
+      const tasks = result.recordset
+      if (Array.isArray(tasks) && !tasks.length) {
+        console.log(`No request Scheduled in 5 minutes`)
 
-          for (const task of tasks) {
-              // console.log(`Processing task for dashboardcode: ${task.dashboardcode}, dealerid :${task.dealerid} ,scheduledon: ${task.scheduledon}`);
+      }
+      else {
+        console.log(tasks)
+      }
 
-              // Perform the refresh logic here
-              if(task.dashboardcode == 13){ await refreshSI(task.brand,task.dealer,task.brandid,task.dealerid);}
-              if(task.dashboardcode == 7){ await refreshPPNI(task.brandid,task.dealerid);}
-              if(task.dashboardcode == 8){ await refreshBenchmarking(task.dealerid);}
-              if(task.dashboardcode == 12){ await refreshCID(task.dealerid);}
-              if(task.dashboardcode == 15){ await refreshTOPS(task.dealerid);}
 
-              // Mark task as scheduled
-              // status = 3 (when request is scheduled)
-              await pool.request()
-                  .input('reqid', sql.Int, task.reqid)
-                  .query(`use [norms]
+      for (const task of tasks) {
+        // console.log(`Processing task for dashboardcode: ${task.dashboardcode}, dealerid :${task.dealerid} ,scheduledon: ${task.scheduledon}`);
+        // Perform the refresh logic here
+        if (task.dashboardcode == 13) { await refreshSI(task.brand, task.dealer, task.brandid, task.dealerid)} 
+        if (task.dashboardcode == 7) { await refreshPPNI(task.brandid, task.dealerid)} 
+        if (task.dashboardcode == 8) { await refreshBenchmarking(task.dealerid)} 
+        if (task.dashboardcode == 12) { await refreshCID(task.dealerid)} 
+        if (task.dashboardcode == 15) { await refreshTOPS(task.dealerid)} 
+
+        // Mark task as scheduled
+        // status = 3 (when request is scheduled)
+        await pool.request()
+          .input('reqid', sql.Int, task.reqid)
+          .query(`use [norms]
                       UPDATE scheduleddashboard
                       SET status = 3
                       WHERE reqid = @reqid
-                  `);
-          }
-      } catch (error) {
-          console.error("Error processing scheduled tasks:", error.message);
+                  `)
       }
-  });
-};
+    } catch (error) {
+      console.error("Error processing scheduled tasks:", error.message)
+    }
+  })
+}
 
 
 const getBDM = async(req,res)=>{
