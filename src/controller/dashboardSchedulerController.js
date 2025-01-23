@@ -22,44 +22,6 @@ try {
     res.status(500).json({details:error.message})
 }
 }
-// 
-// const getBrandsforDashboard = async (req, res) => {
-//   const pool = await getPool();
-//   try {
-//     const { DashboardCodes } = req.body;
-
-//     // Validate that DashboardCodes is an array and not empty
-//     if (!Array.isArray(DashboardCodes) || DashboardCodes.length === 0) {
-//       return res.status(400).json({ error: "DashboardCodes must be a non-empty array." });
-//     }
-
-//     // Construct a dynamic query with placeholders for each DashboardCode
-//     const placeholders = DashboardCodes.map((_, index) => `@DashboardCode${index}`).join(', ');
-//     const query = `
-//       USE [z_scope];
-//       SELECT li.brand, li.brandid
-//       FROM [dbo].[DB_DashboardLocMapping] dlm
-//       JOIN locationinfo li ON li.locationid = dlm.LocationID
-//       WHERE DashboardCode IN (${placeholders})
-//       GROUP BY brandid, brand
-//       ORDER BY BrandID;
-//     `;
-
-//     // Bind each DashboardCode to a parameter
-//     const request = pool.request();
-//     DashboardCodes.forEach((code, index) => {
-//       request.input(`DashboardCode${index}`, sql.Int, code);
-//     });
-
-//     const result = await request.query(query);
-
-//     // Respond with the result
-//     res.status(200).json({ Brands: result.recordset });
-//   } catch (error) {
-//     console.error("Error fetching brands for dashboard:", error.message);
-//     res.status(500).send(error.message);
-//   }
-// };
 const getBrandsforDashboard = async (req, res) => {
   const pool = await getPool();
   try {
@@ -101,7 +63,6 @@ const getBrandsforDashboard = async (req, res) => {
     res.status(500).send(error.message);
   }
 };
-
 const getDealersforDashboard = async(req,res)=>{
 const pool = await getPool();
 try {
@@ -206,79 +167,93 @@ try {
     
   // };
 
-  const uploadSchedule = async (req, res) => {
+const uploadSchedule = async (req, res) => {
     const pool = getPool();
-  
     try {
-      const { dashboardcodes, brandid, brand, dealer, dealerid, scheduledon, addedby } = req.body;
-  
+      const {dashboardcodes, brandid, brand, dealer, dealerid, scheduledon, addedby } = req.body;
+      if(!addedby){
+        res.status(400).send(`Userid is Required`)
+      }
+
+      let query = `use [z_scope] select designation , isBDM from adminmaster_gen where bintid_pk = @addedby`
+      const result = await pool.request().input('addedby',sql.Int,addedby).query(query)
+      let isUserValid;
+      if(result.recordset.designation == 5 || result.recordset.isBDM == 'Y'){
+         isUserValid = true;
+      }else{
+        isUserValid = false;
+      }
+
+      
       // Validate dashboardcodes as an array
-      let parsedDashboardCodes;
-      try {
-        parsedDashboardCodes = JSON.parse(JSON.stringify(dashboardcodes)); // Ensure it's a proper array
-        if (!Array.isArray(parsedDashboardCodes) || parsedDashboardCodes.length === 0) {
-          throw new Error("Invalid dashboardcodes format.");
+      if (isUserValid) {
+        let parsedDashboardCodes;
+        try {
+          parsedDashboardCodes = JSON.parse(JSON.stringify(dashboardcodes)); // Ensure it's a proper array
+          if (!Array.isArray(parsedDashboardCodes) || parsedDashboardCodes.length === 0) {
+            throw new Error("Invalid dashboardcodes format.");
+          }
+        } catch (err) {
+          return res.status(400).json({ error: "Invalid or missing dashboardcodes. It must be a JSON array." });
         }
-      } catch (err) {
-        return res.status(400).json({ error: "Invalid or missing dashboardcodes. It must be a JSON array." });
+    
+        // Validate other required fields
+        if (!brandid || !brand || !dealer || !dealerid || !scheduledon || !addedby) {
+          return res.status(400).json({ error: "All fields are required." });
+        }
+    
+        // Parse and validate the `scheduledon` field
+        const scheduledDate = new Date(scheduledon);
+        if (isNaN(scheduledDate.getTime())) {
+          return res.status(400).json({ error: "Invalid date format for 'scheduledon'." });
+        }
+    
+        // Check if the date is at least 24 hours in the future
+        const currentDate = new Date();
+        const futureThreshold = new Date(currentDate.getTime() + 24 * 60 * 60 * 1000); // 24 hours from now
+        if (scheduledDate <= futureThreshold) {
+          return res.status(400).json({
+            error: "Scheduled date must be at least 24 hours after the current date.",
+          });
+        }
+    
+        // Validate dealer data
+        const isDataValid = await dataValidator(dealerid);
+        console.log(isDataValid);
+    
+        if (!isDataValid) {
+          return res.status(400).send("Data for Dealer is not Updated");
+        }
+    
+        // Insert each dashboardcode into the database
+        for (const dashboardcode of parsedDashboardCodes) {
+          const query = ` use norms
+            INSERT INTO ScheduledDashboard (Dashboardcode, Brandid, Brand, Dealerid, Dealer, Scheduledon, Addedby, Addedon)
+            VALUES (@dashboardcode, @brandid, @brand, @dealerid, @dealer, @scheduledon, @addedby, GETDATE());
+          `;
+    
+          await pool.request()
+            .input("dashboardcode", sql.Int, dashboardcode)  // Unique input for each iteration
+            .input("brand", sql.VarChar, brand)
+            .input("brandid", sql.Int, brandid)
+            .input("dealer", sql.VarChar, dealer)
+            .input("dealerid", sql.Int, dealerid)
+            .input("scheduledon", sql.DateTime, scheduledDate)
+            .input("addedby", sql.Int, addedby)
+            .query(query);
+        }
+    
+        console.log("Dashboard successfully uploaded.");
+        res.status(201).json({ message: "Dashboard Successfully Scheduled" });
       }
-  
-      // Validate other required fields
-      if (!brandid || !brand || !dealer || !dealerid || !scheduledon || !addedby) {
-        return res.status(400).json({ error: "All fields except dashboardcodes are required." });
+      else{
+        res.status(401).json({message:'You are not Authorised to Schedule any Dashboard'})
       }
-  
-      // Parse and validate the `scheduledon` field
-      const scheduledDate = new Date(scheduledon);
-      if (isNaN(scheduledDate.getTime())) {
-        return res.status(400).json({ error: "Invalid date format for 'scheduledon'." });
-      }
-  
-      // Check if the date is at least 24 hours in the future
-      const currentDate = new Date();
-      const futureThreshold = new Date(currentDate.getTime() + 24 * 60 * 60 * 1000); // 24 hours from now
-      if (scheduledDate <= futureThreshold) {
-        return res.status(400).json({
-          error: "Scheduled date must be at least 24 hours after the current date.",
-        });
-      }
-  
-      // Validate dealer data
-      const isDataValid = await dataValidator(dealerid);
-      console.log(isDataValid);
-  
-      if (!isDataValid) {
-        return res.status(400).send("Data for Dealer is not Updated");
-      }
-  
-      // Insert each dashboardcode into the database
-      for (const dashboardcode of parsedDashboardCodes) {
-        const query = ` use norms
-          INSERT INTO ScheduledDashboard (Dashboardcode, Brandid, Brand, Dealerid, Dealer, Scheduledon, Addedby, Addedon)
-          VALUES (@dashboardcode, @brandid, @brand, @dealerid, @dealer, @scheduledon, @addedby, GETDATE());
-        `;
-  
-        // Create a new SQL request for each iteration
-        await pool.request()
-          .input("dashboardcode", sql.Int, dashboardcode)  // Unique input for each iteration
-          .input("brand", sql.VarChar, brand)
-          .input("brandid", sql.Int, brandid)
-          .input("dealer", sql.VarChar, dealer)
-          .input("dealerid", sql.Int, dealerid)
-          .input("scheduledon", sql.DateTime, scheduledDate)
-          .input("addedby", sql.Int, addedby)
-          .query(query);
-      }
-  
-      console.log("Schedules successfully uploaded.");
-      res.status(201).json({ message: "Schedules Successfully Scheduled" });
     } catch (error) {
       console.error("Error uploading schedules:", error.message);
       res.status(500).json({ error: "Internal Server Error", details: error.message });
     }
-  };
-  
-
+};
 function scheduleTask() {
   cron.schedule('*/5 * * * *', async () => {
     console.log("Running scheduler in every 5 minutes")
@@ -308,17 +283,17 @@ function scheduleTask() {
         // Perform the refresh logic here
         if (task.dashboardcode == 13) { await refreshSI(task.brand, task.dealer, task.brandid, task.dealerid)} 
         if (task.dashboardcode == 7) { await refreshPPNI(task.brandid, task.dealerid)} 
-        if (task.dashboardcode == 8) { await refreshBenchmarking(task.dealerid)} 
-        if (task.dashboardcode == 12) { await refreshCID(task.dealerid)} 
-        if (task.dashboardcode == 15) { await refreshTOPS(task.dealerid)} 
+        if (task.dashboardcode == 12) { await refreshBenchmarking(task.dealerid)} 
+        if (task.dashboardcode == 15) { await refreshCID(task.dealerid)} 
+        if (task.dashboardcode == 8) { await refreshTOPS(task.dealerid)} 
 
-        // Mark task as scheduled
-        // status = 3 (when request is scheduled)
+        // Mark Status
+        // status = 1 (when request is went for data refresh "SP IS RUNNING")
         await pool.request()
           .input('reqid', sql.Int, task.reqid)
           .query(`use [norms]
                       UPDATE scheduleddashboard
-                      SET status = 3
+                      SET status = 1
                       WHERE reqid = @reqid
                   `)
       }
@@ -327,8 +302,6 @@ function scheduleTask() {
     }
   })
 }
-
-
 const getBDM = async(req,res)=>{
   const pool = await getPool()
 try {
@@ -345,7 +318,13 @@ const getRequests = async(req,res)=>{
   const pool = await getPool()
   
 try {
-    const result =await pool.request().query(`use [norms]  select * from ScheduledDashboard`)
+   const query = `use norms select sd.reqid,dm.Dashboard,sd.Brand,sd.Dealer,sd.ScheduledOn,CONCAT(amg1.vcFirstName,' ',amg1.vcLastName)as Addedby,
+	  case when sd.Updatedby = amg2.bintId_Pk then CONCAT(amg2.vcFirstName,' ',amg2.vcLastName) end Updatedby,sd.Updatedon
+	  from ScheduledDashboard sd
+	  inner join z_scope..DB_DashboardMaster dm on sd.DashboardCode=dm.tCode
+	  inner join z_scope..AdminMaster_GEN amg1 on sd.Addedby=amg1.bintId_Pk
+	  left join z_scope..AdminMaster_GEN amg2 on sd.Updatedby=amg2.bintId_Pk`
+    const result =await pool.request().query(query)
     
     res.status(200).json({Request:result.recordset})
 } catch (error) {
@@ -356,41 +335,49 @@ const editSchedule = async(req,res)=>{
   const pool = await getPool()
   try {
     const {bintid_pk} = req.params
-    const {reqid , dashboardcode , brandid , dealerid , scheduledon} = req.body
+    const {reqid , scheduledon} = req.body
      
   
     // console.log(bintid_pk);
     
-    let  query = `use [norms] select addedby from ScheduledDashboard where reqid = @reqid 
-                    use [z_scope] select designation , isBDM from adminmaster_gen where bintid_pk = @bintid_pk
-                    `
+    let  query = `use [norms] select addedby , status from ScheduledDashboard where reqid = @reqid 
+                  use [z_scope] select designation , isBDM from adminmaster_gen where bintid_pk = @bintid_pk`
   
     const result =await pool.request().input('reqid',sql.Int,reqid).input('bintid_pk',sql.Int,bintid_pk).query(query)
     const addedby = result.recordsets[0][0].addedby; 
     const designation = result.recordsets[1][0].designation; 
     const isBDM = result.recordsets[1][0].isBDM;
   
+    // Checking User is Authorised to Update the request or not
     if(bintid_pk ==  addedby || (designation == 5 && isBDM == 'N')){
          query = ` use [norms]
                   UPDATE scheduleddashboard
                   SET 
-                  dashboardcode = @dashboardcode,
-                  brandid = @brandid,
-                  dealerid = @dealerid,
-                  scheduledon = '2025-01-10 19:36:15.000',
+                 -- dashboardcode = @dashboardcode,
+                 -- brandid = @brandid,
+                 -- dealerid = @dealerid,
+                  scheduledon = @scheduledon,
                   updatedby = @updatedby,
                   updatedon = GETDATE()
                   WHERE reqid = @reqid;` 
   
          await pool.request()
          .input('reqid',sql.Int,reqid)
-         .input('dashboardcode',sql.Int,dashboardcode)
-         .input('brandid',sql.Int,brandid)
-         .input('dealerid',sql.Int,dealerid)
+        //  .input('dashboardcode',sql.Int,dashboardcode)
+        //  .input('brandid',sql.Int,brandid)
+        //  .input('dealerid',sql.Int,dealerid)
          .input('scheduledon',sql.DateTime,scheduledon)
          .input('updatedby',sql.Int,bintid_pk)
          .query(query)
-         return res.status(200).send(`kam done`)
+
+         query = `use norms select sd.reqid,dm.Dashboard,sd.Brand,sd.Dealer,sd.ScheduledOn,CONCAT(amg1.vcFirstName,' ',amg1.vcLastName)as Addedby,
+	  case when sd.Updatedby = amg2.bintId_Pk then CONCAT(amg2.vcFirstName,' ',amg2.vcLastName) end Updatedby,sd.Updatedon
+	  from ScheduledDashboard sd
+	  inner join z_scope..DB_DashboardMaster dm on sd.DashboardCode=dm.tCode
+	  inner join z_scope..AdminMaster_GEN amg1 on sd.Addedby=amg1.bintId_Pk
+	  left join z_scope..AdminMaster_GEN amg2 on sd.Updatedby=amg2.bintId_Pk`
+    const result =await pool.request().query(query)
+        return res.status(200).json({message:"kam done👍🦁",Requests:result.recordset})
     }
     else{
       return res.status(401).send(`You are not authorised`)
