@@ -1,8 +1,8 @@
-import { getPool } from "../db/db.js";
+import { getPool1 } from "../db/db.js";
 import sql from 'mssql';
 
 const dataValidator = async (dealerid) => {    
-  const pool = await getPool();
+  const pool = await getPool1();
 
   try {
     const dynamicTable = `dealer_sale_upload1_td001_${dealerid}`;

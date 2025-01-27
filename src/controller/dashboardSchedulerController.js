@@ -1,11 +1,11 @@
 import sql from 'mssql'
-import {getPool} from '../db/db.js'
+import {getPool1,getPool2} from '../db/db.js'
 import dataValidator from '../utils/dataValidation.js'
 import cron from 'node-cron'
 import {refreshBenchmarking, refreshPPNI, refreshSI, refreshTOPS, refreshCID, refreshSpecialList} from '../utils/refreshDashboard.js'
 
 const getDashboard = async(req,res)=>{
-    const pool = await getPool();
+    const pool = await getPool1();
     
 try {  
       const query = ` use [z_scope] select tCode,Dashboard from DB_DashboardMaster where status = 1`
@@ -23,7 +23,7 @@ try {
 }
 }
 const getBrandsforDashboard = async (req, res) => {
-  const pool = await getPool();
+  const pool = await getPool1();
   try {
     const { DashboardCode } = req.body;
 
@@ -64,7 +64,7 @@ const getBrandsforDashboard = async (req, res) => {
   }
 };
 const getDealersforDashboard = async(req,res)=>{
-const pool = await getPool();
+const pool = await getPool1();
 try {
   const {DashboardCode,brandid} = req.body
 
@@ -100,14 +100,14 @@ try {
 
 }
 const uploadSchedule = async (req, res) => {
-    const pool = getPool();
+    const pool = getPool1();
     try {
       const {dashboardcodes, brandid, brand, dealer, dealerid, scheduledon, addedby } = req.body;
       if(!addedby){
         res.status(400).send(`Userid is Required`)
       }
 
-      let query = `use [z_scope] select designation , isBDM from adminmaster_gen where bintid_pk = @addedby`
+      const query = `use [z_scope] select designation , isBDM from adminmaster_gen where bintid_pk = @addedby`
       const result = await pool.request().input('addedby',sql.Int,addedby).query(query)
       let isUserValid;
       if(result.recordset[0].designation == 5 || result.recordset[0].isBDM == 'Y'){
@@ -160,11 +160,23 @@ const uploadSchedule = async (req, res) => {
     
         // Insert each dashboardcode into the database
         for (const dashboardcode of parsedDashboardCodes) {
-          const query = ` use norms
+
+        let query = `use norms select * from ScheduledDashboard where dashboardcode = @dashboardcode and brandid = brandid and dealerid = @dealerid and status in (2,4,5,6)`
+        let result = await pool.request()
+        .input("dashboardcode", sql.Int, dashboardcode)  
+        .input("brandid", sql.Int, brandid)
+        .input("dealerid", sql.Int, dealerid).query(query)
+        // if(result.recordset){
+        //   console.log(result.recordset);
+        // console.log(`Already Exists`);
+        // return ;
+        // }
+         
+         query = ` use norms
             INSERT INTO ScheduledDashboard (Dashboardcode, Brandid, Brand, Dealerid, Dealer, Scheduledon, Addedby, Addedon)
             VALUES (@dashboardcode, @brandid, @brand, @dealerid, @dealer, @scheduledon, @addedby, GETDATE());
           `;
-    
+          
           await pool.request()
             .input("dashboardcode", sql.Int, dashboardcode)  // Unique input for each iteration
             .input("brand", sql.VarChar, brand)
@@ -188,10 +200,10 @@ const uploadSchedule = async (req, res) => {
     }
 };
 function scheduleTask() {
-  cron.schedule('*/1 * * * *', async () => {
+  cron.schedule('*/5 * * * *', async () => {
     console.log("Running scheduler in every 5 minutes")
     try {
-      const pool = await getPool()
+      const pool = await getPool1()
 
       // Fetch tasks to be executed
       // status = 0 (when request is pending)
@@ -235,7 +247,7 @@ function scheduleTask() {
   })
 }
 const getBDM = async(req,res)=>{
-  const pool = await getPool()
+  const pool = await getPool1()
 try {
     const {bigint_pk} = req.body
     const query = `use [z_scope] select bintId_Pk, vcFirstName , vcLastName from AdminMaster_GEN where isBDM = 'y' and bintId_Pk = @bigint_pk`
@@ -255,7 +267,7 @@ const getRequests = async (req, res) => {
     }
 };  
 const editSchedule = async (req, res) => {
-  const pool = await getPool();
+  const pool = await getPool1();
   try {
     const { reqid, bintid_pk, scheduledon } = req.body;
 
@@ -333,7 +345,7 @@ const editSchedule = async (req, res) => {
 };
 const deleteReq = async(req,res)=>{
 try {
-    const pool = await getPool()
+    const pool = await getPool1()
   const {reqid,bintid_pk} = req.body
   if(!reqid , !bintid_pk){
     return res.status(401).json({details:'reqid and userid is required in this request'})
@@ -348,19 +360,23 @@ try {
 }
 }
 const fetchRequests = async () => {
-  const pool = await getPool();
+  const pool = await getPool1();
   try {
     const query = `
-      USE norms;
-      SELECT sd.reqid, dm.Dashboard, sd.Brand, sd.Dealer, sd.ScheduledOn,
-             CONCAT(amg1.vcFirstName, ' ', amg1.vcLastName) AS Addedby,
-             CASE WHEN sd.Editedby = amg2.bintId_Pk THEN CONCAT(amg2.vcFirstName, ' ', amg2.vcLastName) END AS Editedby,
-             sd.Editedon, sm.statusname
-      FROM ScheduledDashboard sd
-      LEFT JOIN z_scope..DB_DashboardMaster dm ON sd.DashboardCode = dm.tCode
+      use norms select 
+      sd.reqid, dm.Dashboard , sd.Brand, sd.Dealer, sd.ScheduledOn ,sm.StatusName , 
+      CONCAT(amg1.vcFirstName, ' ', amg1.vcLastName) AS Addedby , sd.Addedon ,
+      CASE WHEN sd.Editedby = amg2.bintId_Pk THEN CONCAT(amg2.vcFirstName, ' ', amg2.vcLastName) END AS Editedby, sd.Editedon , 
+      CASE WHEN sd.Deletedby = amg3.bintId_Pk THEN CONCAT(amg3.vcFirstName, ' ', amg3.vcLastName) END AS Deletedby, sd.Deletedon,
+      CASE WHEN d.BDMCode = amg4.bintId_Pk THEN CONCAT(amg4.vcFirstName, ' ', amg4.vcLastName) END AS BDM
+      from ScheduledDashboard sd
+      join z_scope..DB_DashboardMaster dm ON sd.DashboardCode = dm.tCode
+      join UAD_BI..SBS_DBS_STATUS_MASTER sm on sd.status = sm.status
+      join z_scope..Dealer_Master d on d.bigid = sd.Dealerid
       LEFT JOIN z_scope..AdminMaster_GEN amg1 ON sd.Addedby = amg1.bintId_Pk
       LEFT JOIN z_scope..AdminMaster_GEN amg2 ON sd.Editedby = amg2.bintId_Pk
-      LEFT JOIN UAD_BI..SBS_DBS_STATUS_MASTER sm on sd.status = sm.status;`;
+      LEFT JOIN z_scope..AdminMaster_GEN amg3 ON sd.Editedby = amg3.bintId_Pk
+      LEFT JOIN z_scope..AdminMaster_GEN amg4 ON d.BDMCode = amg4.bintId_Pk`;
     const result = await pool.request().query(query);
     return result.recordset;
   } catch (error) {
@@ -368,5 +384,15 @@ const fetchRequests = async () => {
     throw new Error('Failed to fetch requests.');
   }
 };
-export {getDashboard,getBrandsforDashboard,getDealersforDashboard,uploadSchedule,getRequests,getBDM,editSchedule,scheduleTask,deleteReq}
+
+const test = async(req,res)=>{
+  const pool = await getPool2();
+  try {
+    const result = await pool.request().query(`select * from [dbo].[DB_DashboardMaster]`)
+    res.status(200).json({res:result.recordset})
+  } catch (error) {
+    res.status(500).send(error.message)
+  }
+}
+export {getDashboard,getBrandsforDashboard,getDealersforDashboard,uploadSchedule,getRequests,getBDM,editSchedule,scheduleTask,deleteReq,test}
 

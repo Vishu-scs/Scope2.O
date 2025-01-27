@@ -1,5 +1,5 @@
 import Router from 'express'
-import { getDashboard , getBrandsforDashboard,getDealersforDashboard, uploadSchedule, getRequests,getBDM, editSchedule , deleteReq} from '../controller/dashboardSchedulerController.js'
+import { getDashboard , getBrandsforDashboard,getDealersforDashboard, uploadSchedule, getRequests,getBDM, editSchedule , deleteReq, test} from '../controller/dashboardSchedulerController.js'
 const router = Router()
 
 router.route('/getdashboard').get(getDashboard)
@@ -10,6 +10,8 @@ router.route('/getbdm').post(getBDM)
 router.route('/getrequests').get(getRequests)
 router.route('/delrequest').post(deleteReq)
 router.route('/editschedule').post(editSchedule)
+router.route('/test').get(test)
+
 
 
 

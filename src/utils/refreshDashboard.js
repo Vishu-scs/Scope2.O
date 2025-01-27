@@ -1,10 +1,10 @@
-import { getPool } from "../db/db.js";
+import { getPool1 } from "../db/db.js";
 import sql from 'mssql'
 
 
 const refreshSI = async(brand,dealer,brandid,dealerid,reqid) =>{
 try {
-   const pool = await getPool() 
+   const pool = await getPool1() 
    let query = `use [UAD_BI] 
                    Insert into si_dealer_list (brand,dealer,brandid,dealerid)
                    Values (@brand,@dealer,@brandid,@dealerid)`
@@ -27,7 +27,7 @@ try {
 }
 const refreshBenchmarking = async(dealerid,reqid)=>{
    try {
-     const pool = await getPool()
+     const pool = await getPool1()
      let query = `use [UAD_BI] exec DRD_Adjustment_Dealer @dealerid`
      let result =  await pool.request().input('dealerid',sql.Int,dealerid).query(query)
       console.log(`Data Refreshing Benchmarking`);
@@ -39,19 +39,27 @@ const refreshBenchmarking = async(dealerid,reqid)=>{
          await pool.request().input('reqid',sql.Int,reqid).query(query)
       }
       //Data Refresh Failed 
-      else{
-         query = `use norms Update ScheduledDashboard set status = 2 where reqid = @reqid`
-         await pool.request().input('reqid',sql.Int,reqid).query(query)
+      // else{
+      //    query = `use norms Update ScheduledDashboard set status = 2 where reqid = @reqid`
+      //    await pool.request().input('reqid',sql.Int,reqid).query(query)
+      // }
+   } 
+   // if SP fails then error is catched in catch block and then status = 2 (Data Refresh Failed) is updated here 
+   catch (error) {
+      console.error("Error refreshing Benchmarking:", error.message);
+      // Handle the failure scenario: update status to 2
+      try {
+        const pool = await getPool1();
+        const query = `use norms Update ScheduledDashboard set status = 2 where reqid = @reqid`;
+        await pool.request().input('reqid', sql.Int, reqid).query(query);
+      } catch (updateError) {
+        console.error("Error updating ScheduledDashboard:", updateError.message);
       }
-      
-   } catch (error) {
-   //  res.status(500).send(error.message)
-   console.error("Error refreshing Benchmarking:", error.message);
-   }
+    }
 }
 const refreshCID = async(dealerid,reqid)=>{
    try {
-     const pool = await getPool()
+     const pool = await getPool1()
      let query = `use UAD_BI_CID exec UAD_Cinv_Compile @dealerid`
    //   const test = `use uad_bi select * from BackupTbl`
      const result =  await pool.request().input('dealerid',sql.Int,dealerid).query(query)
@@ -63,19 +71,26 @@ const refreshCID = async(dealerid,reqid)=>{
          await pool.request().input('reqid',sql.Int,reqid).query(query)
       }
       //Data Refresh Failed 
-      else{
-         query = `use norms Update ScheduledDashboard set status = 2 where reqid = @reqid`
-         await pool.request().input('reqid',sql.Int,reqid).query(query)
-      }
-      
+      // else{
+      //    query = `use norms Update ScheduledDashboard set status = 2 where reqid = @reqid`
+      //    await pool.request().input('reqid',sql.Int,reqid).query(query)
+      // }
+      // if SP fails then error is catched in catch block and then status = 2 (Data Refresh Failed) is updated here 
    } catch (error) {
    //  res.status(500).send(error.message)
    console.error("Error refreshing CID:", error.message);
+   try {
+      const pool = await getPool1();
+      const query = `use norms Update ScheduledDashboard set status = 2 where reqid = @reqid`;
+      await pool.request().input('reqid', sql.Int, reqid).query(query);
+    } catch (updateError) {
+      console.error("Error updating ScheduledDashboard:", updateError.message);
+    }
    }
 }
 const refreshPPNI = async(brandid,dealerid,reqid)=>{
    try {
-     const pool = await getPool()
+     const pool = await getPool1()
      let query = `use UAD_BI_PPNI exec UAD_PPNI_Report_LS @brandid,@dealerid`
    //   const test = `use uad_bi select * from BackupTbl`
      const result =  await pool.request().input('brandid',sql.TinyInt,brandid).input('dealerid',sql.Int,dealerid).query(query)
@@ -87,19 +102,26 @@ const refreshPPNI = async(brandid,dealerid,reqid)=>{
          await pool.request().input('reqid',sql.Int,reqid).query(query)
       }
       //Data Refresh Failed 
-      else{
-         query = `use norms Update ScheduledDashboard set status = 2 where reqid = @reqid`
-         await pool.request().input('reqid',sql.Int,reqid).query(query)
-      }
-      
+      // else{
+      //    query = `use norms Update ScheduledDashboard set status = 2 where reqid = @reqid`
+      //    await pool.request().input('reqid',sql.Int,reqid).query(query)
+      // }
+      // if SP fails then error is catched in catch block and then status = 2 (Data Refresh Failed) is updated here 
    } catch (error) {
    //  res.status(500).send(error.message)
    console.error("Error refreshing PPNI:", error.message);
+   try {
+      const pool = await getPool1();
+      const query = `use norms Update ScheduledDashboard set status = 2 where reqid = @reqid`;
+      await pool.request().input('reqid', sql.Int, reqid).query(query);
+    } catch (updateError) {
+      console.error("Error updating ScheduledDashboard:", updateError.message);
+    }
    }
 }
 const refreshSpecialList = async(reqid)=>{
    try {
-      const pool = await getPool()
+      const pool = await getPool1()
       console.log(`Data Refreshing Special List`);
       //Data is Always Refreshed in Special List 
       let query = `use norms Update ScheduledDashboard set status = 3 where reqid = @reqid`
@@ -111,7 +133,7 @@ const refreshSpecialList = async(reqid)=>{
 }
 const refreshTOPS = async(dealerid,reqid)=>{
    try {
-     const pool = await getPool()
+     const pool = await getPool1()
      let query = `EXEC [103.153.58.143,2498].[z_scope].[dbo].Tops_vs_scs_norms_dealerwise_test1 @dealerid`
    //   const test = `use uad_bi select * from BackupTbl`
      const result =  await pool.request().input('dealerid',sql.Int,dealerid).query(query)
