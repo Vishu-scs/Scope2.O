@@ -16,13 +16,13 @@ const config1 = {
 };
  
 
-let pool1;
+let pool;
 const connectDB = async()=>{
-pool1 = await new sql.connect(config1)
+pool = await new sql.connect(config1)
 // .connect()
-.then(pool1 => {
+.then(pool => {
     console.log('Connected to Live SQL Server');
-    return pool1;
+    return pool;
 })
 .catch(err => {
     console.error('Database connection failed!', err);
@@ -31,48 +31,48 @@ pool1 = await new sql.connect(config1)
 };
 
 const getPool1 = () => {
-  if (!pool1) {
+  if (!pool) {
       throw new Error("Database connection is not established yet");
   }
-  return pool1;
+  return poo1;
 };
 
 
 
-const config2 = {
-    server: process.env.SERVER2,    // SQL Server hostname or IP address
-    database: process.env.DATABASE2,    // Your database name
-    user: process.env.USER2,                // SQL Server login username
-    password: process.env.PASSWORD2,
-    port:Number(process.env.DB_PORT2),        // SQL Server login password
-    options: {
-        encrypt: false,           // Disable encryption for local servers
-        enableArithAbort: true ,
-        trustServerCertificate: true,  // Helps with certain SQL Server errors
-    },
-    // requestTimeout: 30000, // 30 seconds
-    connectionTimeout: 30000, // 30 seconds
-};
+// const config2 = {
+//     server: process.env.SERVER2,    // SQL Server hostname or IP address
+//     database: process.env.DATABASE2,    // Your database name
+//     user: process.env.USER2,                // SQL Server login username
+//     password: process.env.PASSWORD2,
+//     port:Number(process.env.DB_PORT2),        // SQL Server login password
+//     options: {
+//         encrypt: false,           // Disable encryption for local servers
+//         enableArithAbort: true ,
+//         trustServerCertificate: true,  // Helps with certain SQL Server errors
+//     },
+//     // requestTimeout: 30000, // 30 seconds
+//     connectionTimeout: 30000, // 30 seconds
+// };
  
 
-let pool2;
-const connectDB2 = async()=>{
-pool2 = await new sql.connect(config2)
-// .connect()
-.then(pool2 => {
-    console.log('Connected to Test SQL Server');
-    return pool2;
-})
-.catch(err => {
-    console.error('Database connection failed!', err);
-    throw err;
-});
-};
+// let pool2;
+// const connectDB2 = async()=>{
+// pool2 = await new sql.connect(config2)
+// // .connect()
+// .then(pool2 => {
+//     console.log('Connected to Test SQL Server');
+//     return pool2;
+// })
+// .catch(err => {
+//     console.error('Database connection failed!', err);
+//     throw err;
+// });
+// };
 
-const getPool2 = () => {
-  if (!pool2) {
-      throw new Error("Database connection is not established yet");
-  }
-  return pool2;
-};
-export {connectDB,connectDB2,getPool1,getPool2};
+// const getPool2 = () => {
+//   if (!pool2) {
+//       throw new Error("Database connection is not established yet");
+//   }
+//   return pool2;
+// };
+export {connectDB,getPool1};

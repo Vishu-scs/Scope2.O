@@ -1,6 +1,6 @@
 import sql from 'mssql'
-import {getPool1,getPool2} from '../db/db.js'
-import dataValidator from '../utils/dataValidation.js'
+import {getPool1} from '../db/db.js'
+import {dataValidator,checkisAlreadyScheduled,checkisUserValid} from '../utils/dataValidation.js'
 import cron from 'node-cron'
 import {refreshBenchmarking, refreshPPNI, refreshSI, refreshTOPS, refreshCID, refreshSpecialList} from '../utils/refreshDashboard.js'
 
@@ -103,21 +103,17 @@ const uploadSchedule = async (req, res) => {
     const pool = getPool1();
     try {
       const {dashboardcodes, brandid, brand, dealer, dealerid, scheduledon, addedby } = req.body;
+
+       // Validate other required fields
+       if (!brandid || !brand || !dealer || !dealerid || !scheduledon || !dashboardcodes) {
+        return res.status(400).json({ error: "All fields are required." });
+      }
       if(!addedby){
         res.status(400).send(`Userid is Required`)
       }
+        // Checking User is Authorised to Perform Actions or not 
+          const isUserValid = checkisUserValid(addedby)
 
-      const query = `use [z_scope] select designation , isBDM from adminmaster_gen where bintid_pk = @addedby`
-      const result = await pool.request().input('addedby',sql.Int,addedby).query(query)
-      let isUserValid;
-      if(result.recordset[0].designation == 5 || result.recordset[0].isBDM == 'Y'){
-         isUserValid = true;
-      }else{
-        isUserValid = false;
-      }
-      // console.log(`User isValid -> ${isUserValid}`);
-      
-      
       // Validate dashboardcodes as an array
       if (isUserValid) {
         let parsedDashboardCodes;
@@ -128,11 +124,6 @@ const uploadSchedule = async (req, res) => {
           }
         } catch (err) {
           return res.status(400).json({ error: "Invalid or missing dashboardcodes. It must be a JSON array." });
-        }
-    
-        // Validate other required fields
-        if (!brandid || !brand || !dealer || !dealerid || !scheduledon || !addedby) {
-          return res.status(400).json({ error: "All fields are required." });
         }
     
         // Parse and validate the `scheduledon` field
@@ -152,7 +143,7 @@ const uploadSchedule = async (req, res) => {
     
         // Validate dealer data
         const isDataValid = await dataValidator(dealerid);
-        console.log(isDataValid);
+        console.log(`isDataUploaded: `,isDataValid);
     
         if (!isDataValid) {
           return res.status(400).json({message:"Data for Dealer is not Updated"});
@@ -161,22 +152,15 @@ const uploadSchedule = async (req, res) => {
         // Insert each dashboardcode into the database
         for (const dashboardcode of parsedDashboardCodes) {
 
-        let query = `use norms select * from ScheduledDashboard where dashboardcode = @dashboardcode and brandid = brandid and dealerid = @dealerid and status in (2,4,5,6)`
-        let result = await pool.request()
-        .input("dashboardcode", sql.Int, dashboardcode)  
-        .input("brandid", sql.Int, brandid)
-        .input("dealerid", sql.Int, dealerid).query(query)
-        // if(result.recordset){
-        //   console.log(result.recordset);
-        // console.log(`Already Exists`);
-        // return ;
-        // }
+        const isAlreadyScheduled = await checkisAlreadyScheduled(dashboardcode,brandid,dealerid,scheduledon)
+         console.log(`already scheduled: `,isAlreadyScheduled);
+         if(!isAlreadyScheduled){
+          return res.status(401).json({message:`Dashboard Already Scheduled`})
+         }
          
-         query = ` use norms
+        const query = ` use norms
             INSERT INTO ScheduledDashboard (Dashboardcode, Brandid, Brand, Dealerid, Dealer, Scheduledon, Addedby, Addedon)
-            VALUES (@dashboardcode, @brandid, @brand, @dealerid, @dealer, @scheduledon, @addedby, GETDATE());
-          `;
-          
+            VALUES (@dashboardcode, @brandid, @brand, @dealerid, @dealer, @scheduledon, @addedby, GETDATE());`;
           await pool.request()
             .input("dashboardcode", sql.Int, dashboardcode)  // Unique input for each iteration
             .input("brand", sql.VarChar, brand)

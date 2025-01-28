@@ -100,4 +100,89 @@ else{
   }
 };
 
-export default dataValidator;
+// const checkisAlreadyScheduled = async(dashboardcode,brandid,dealerid,scheduledon)=>{
+//   const pool = await getPool1()
+//   console.log(`Dash - ${dashboardcode}, brand - ${brandid}, dealer - ${dealerid} , schedule - ${scheduledon}`)
+//   const query = `use norms select status , scheduledon  from scheduledDashboard sd where dashboardcode = @dashboardcode and dealerid = @dealerid and brandid = @brandid
+//                  select * from scheduledDashboard sd where dashboardcode = @dashboardcode and dealerid = @dealerid and brandid = @brandid`
+//   const result = await pool.request()
+//                   .input('dashboardcode',sql.Int,dashboardcode)
+//                   .input('brandid',sql.Int,brandid)
+//                   .input('dealerid',sql.Int,dealerid)
+//                   .input('scheduledon',sql.DateTime,scheduledon)
+//                   .query(query)
+//                   console.log(`hi`);
+//                   // console.log(result.recordsets);
+//             const status = result.recordsets[0][0].status
+//             const lastscheduledfor = result.recordsets[0][0].scheduledon
+//             const allowedtoscheduleon = new Date (lastscheduledfor)
+//             allowedtoscheduleon.setDate(allowedtoscheduleon.getdate()+1)
+//       //       if((status == 5 || status == 6) && (lastscheduledfor > allowedtoscheduleon)){
+
+//       //       }
+//       // console.log(status);
+//       // console.log(lastscheduledfor); 
+//       if(result.recordsets[1] === 0 || (result.recordsets[1][0].status = status && result.recordsets[1][0].Scheduledon > allowedtoscheduleon ) ){
+//         return true;
+//       }
+//       return false;
+    
+// }
+const checkisAlreadyScheduled = async (dashboardcode, brandid, dealerid, scheduledon) => {
+  const pool = await getPool1();
+  // console.log(`Dash - ${dashboardcode}, brand - ${brandid}, dealer - ${dealerid} , schedule - ${scheduledon}`);
+  
+  const query = `
+    use norms 
+    select  scheduledon from scheduledDashboard  where dashboardcode = @dashboardcode and dealerid = @dealerid and brandid = @brandid;
+    select * from scheduledDashboard sd where dashboardcode = @dashboardcode and dealerid = @dealerid and brandid = @brandid;
+  `;
+  
+  const result = await pool.request()
+    .input('dashboardcode', sql.Int, dashboardcode)
+    .input('brandid', sql.Int, brandid)
+    .input('dealerid', sql.Int, dealerid)
+    .input('scheduledon', sql.DateTime, scheduledon)
+    .query(query);
+  
+  // const status = result.recordsets[0][0].status;
+  const lastscheduledfor = result.recordsets[0][0].scheduledon;
+  
+  // Create a new Date object from last scheduled date
+  const allowedtoscheduleon = new Date(lastscheduledfor);
+  
+  // Add 1 day to the last scheduled date
+  allowedtoscheduleon.setDate(allowedtoscheduleon.getDate() + 1);
+
+  // Check if the conditions are met
+  if (result.recordsets[1].length === 0 || ((result.recordsets[1][0].Status === 5 || result.recordsets[1][0].Status === 6) && result.recordsets[1][0].ScheduledOn > allowedtoscheduleon)) {
+    return true;
+  }
+
+  return false;
+};
+
+// Checking User is Authorised to Perform Actions or not 
+const checkisUserValid = async(addedby)=>{
+  const pool = await getPool1()
+  const query = `use [z_scope] select designation , isBDM from adminmaster_gen where bintid_pk = @addedby`
+  const result = await pool.request().input('addedby',sql.Int,addedby).query(query)
+  if(result.recordset[0].designation == 5 || result.recordset[0].isBDM == 'Y'){
+    return true;
+  }else{
+    return false;
+  }
+}
+const checkGroupSetting = async(dealerid)=>{
+  const pool = await getPool1()
+  const query = `  	SELECT  CASE 
+        WHEN EXISTS (SELECT 1 FROM Dealer_setting_master WHERE dealerid = 8 AND locationid = 0) THEN 'YES'
+        ELSE 'NO'
+    END AS CID;`
+  const result = await pool.request().input('dealerid',sql.Int,dealerid).query(query)
+  if(result.recordset[0].CID === 'YES'){
+    return true;
+  }
+  return false;
+}
+export  {dataValidator,checkisAlreadyScheduled,checkisUserValid,checkGroupSetting};
