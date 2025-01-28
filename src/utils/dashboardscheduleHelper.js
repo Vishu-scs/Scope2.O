@@ -128,38 +128,88 @@ else{
 //       return false;
     
 // }
-const checkisAlreadyScheduled = async (dashboardcode, brandid, dealerid, scheduledon) => {
-  const pool = await getPool1();
-  // console.log(`Dash - ${dashboardcode}, brand - ${brandid}, dealer - ${dealerid} , schedule - ${scheduledon}`);
+// const checkisAlreadyScheduled = async (dashboardcode, brandid, dealerid) => {
+//   const pool = await getPool1();
+//   // console.log(`Dash - ${dashboardcode}, brand - ${brandid}, dealer - ${dealerid} , schedule - ${scheduledon}`);
   
+//   const query = `
+//     use norms 
+//     select  scheduledon from scheduledDashboard  where dashboardcode = @dashboardcode and dealerid = @dealerid and brandid = @brandid;
+//     select * from scheduledDashboard sd where dashboardcode = @dashboardcode and dealerid = @dealerid and brandid = @brandid;
+//   `;
+  
+//   const result = await pool.request()
+//     .input('dashboardcode', sql.Int, dashboardcode)
+//     .input('brandid', sql.Int, brandid)
+//     .input('dealerid', sql.Int, dealerid)
+//     // .input('scheduledon', sql.DateTime, scheduledon)
+//     .query(query);
+  
+//   // const status = result.recordsets[0][0].status;
+//   const lastscheduledfor = result.recordsets[0][0].scheduledon;
+  
+//   // Create a new Date object from last scheduled date
+//   const allowedtoscheduleon = new Date(lastscheduledfor);
+  
+//   // Add 1 day to the last scheduled date
+//   allowedtoscheduleon.setDate(allowedtoscheduleon.getDate() + 1);
+
+//   // Check if the conditions are met
+//   if (result.recordsets[1].length === 0 || ((result.recordsets[1][0].Status === 5 || result.recordsets[1][0].Status === 6) && result.recordsets[1][0].ScheduledOn > allowedtoscheduleon)) {
+//     return true;
+//   }
+
+//   return false;
+// };
+const checkisAlreadyScheduled = async (dashboardcode, brandid, dealerid) => {
+  const pool = await getPool1();
+
   const query = `
     use norms 
-    select  scheduledon from scheduledDashboard  where dashboardcode = @dashboardcode and dealerid = @dealerid and brandid = @brandid;
-    select * from scheduledDashboard sd where dashboardcode = @dashboardcode and dealerid = @dealerid and brandid = @brandid;
+    SELECT scheduledon 
+    FROM scheduledDashboard  
+    WHERE dashboardcode = @dashboardcode 
+      AND dealerid = @dealerid 
+      AND brandid = @brandid;
+    SELECT * 
+    FROM scheduledDashboard 
+    WHERE dashboardcode = @dashboardcode 
+      AND dealerid = @dealerid 
+      AND brandid = @brandid;
   `;
-  
-  const result = await pool.request()
-    .input('dashboardcode', sql.Int, dashboardcode)
-    .input('brandid', sql.Int, brandid)
-    .input('dealerid', sql.Int, dealerid)
-    .input('scheduledon', sql.DateTime, scheduledon)
-    .query(query);
-  
-  // const status = result.recordsets[0][0].status;
-  const lastscheduledfor = result.recordsets[0][0].scheduledon;
-  
-  // Create a new Date object from last scheduled date
-  const allowedtoscheduleon = new Date(lastscheduledfor);
-  
-  // Add 1 day to the last scheduled date
-  allowedtoscheduleon.setDate(allowedtoscheduleon.getDate() + 1);
 
-  // Check if the conditions are met
-  if (result.recordsets[1].length === 0 || ((result.recordsets[1][0].Status === 5 || result.recordsets[1][0].Status === 6) && result.recordsets[1][0].ScheduledOn > allowedtoscheduleon)) {
-    return true;
+  try {
+    const result = await pool.request()
+      .input('dashboardcode', sql.Int, dashboardcode)
+      .input('brandid', sql.Int, brandid)
+      .input('dealerid', sql.Int, dealerid)
+      .query(query);
+
+    console.log('Query results:', result.recordsets);
+
+    // Check for the last scheduled date
+    const lastscheduledfor = result.recordsets[0]?.[0]?.scheduledon;
+
+    if (!lastscheduledfor) {
+      console.log('No previous schedule found.');
+      return true; // Allow scheduling if no previous schedule exists
+    }
+
+    const allowedtoscheduleon = new Date(lastscheduledfor);
+    allowedtoscheduleon.setDate(allowedtoscheduleon.getDate() + 1);
+
+    // Check if scheduling conditions are met
+    if (result.recordsets[1].length === 0 || 
+        ((result.recordsets[1][0].Status === 5 || result.recordsets[1][0].Status === 6) && 
+         new Date(result.recordsets[1][0].ScheduledOn) > allowedtoscheduleon)) {
+      return true;
+    }
+
+    return false;
+  } catch (error) {
+    console.error('Error in checkisAlreadyScheduled:', error.message);
+    throw error;
   }
-
-  return false;
 };
 
 // Checking User is Authorised to Perform Actions or not 

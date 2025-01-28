@@ -1,6 +1,6 @@
 import sql from 'mssql'
 import {getPool1} from '../db/db.js'
-import {dataValidator,checkisAlreadyScheduled,checkisUserValid} from '../utils/dataValidation.js'
+import {dataValidator,checkisAlreadyScheduled,checkisUserValid} from '../utils/dashboardscheduleHelper.js'
 import cron from 'node-cron'
 import {refreshBenchmarking, refreshPPNI, refreshSI, refreshTOPS, refreshCID, refreshSpecialList} from '../utils/refreshDashboard.js'
 
@@ -152,7 +152,7 @@ const uploadSchedule = async (req, res) => {
         // Insert each dashboardcode into the database
         for (const dashboardcode of parsedDashboardCodes) {
 
-        const isAlreadyScheduled = await checkisAlreadyScheduled(dashboardcode,brandid,dealerid,scheduledon)
+        const isAlreadyScheduled = await checkisAlreadyScheduled(dashboardcode,brandid,dealerid)
          console.log(`already scheduled: `,isAlreadyScheduled);
          if(!isAlreadyScheduled){
           return res.status(401).json({message:`Dashboard Already Scheduled`})
@@ -369,14 +369,14 @@ const fetchRequests = async () => {
   }
 };
 
-const test = async(req,res)=>{
-  const pool = await getPool2();
-  try {
-    const result = await pool.request().query(`select * from [dbo].[DB_DashboardMaster]`)
-    res.status(200).json({res:result.recordset})
-  } catch (error) {
-    res.status(500).send(error.message)
-  }
-}
-export {getDashboard,getBrandsforDashboard,getDealersforDashboard,uploadSchedule,getRequests,getBDM,editSchedule,scheduleTask,deleteReq,test}
+// const test = async(req,res)=>{
+//   const pool = await getPool2();
+//   try {
+//     const result = await pool.request().query(`select * from [dbo].[DB_DashboardMaster]`)
+//     res.status(200).json({res:result.recordset})
+//   } catch (error) {
+//     res.status(500).send(error.message)
+//   }
+// }
+export {getDashboard,getBrandsforDashboard,getDealersforDashboard,uploadSchedule,getRequests,getBDM,editSchedule,scheduleTask,deleteReq}
 

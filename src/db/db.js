@@ -34,7 +34,7 @@ const getPool1 = () => {
   if (!pool) {
       throw new Error("Database connection is not established yet");
   }
-  return poo1;
+  return pool;
 };
 
 

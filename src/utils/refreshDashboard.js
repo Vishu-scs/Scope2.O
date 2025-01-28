@@ -1,6 +1,6 @@
 import { getPool1 } from "../db/db.js";
 import sql from 'mssql'
-import { checkGroupSetting } from "./dataValidation.js";
+import { checkGroupSetting } from "./dashboardscheduleHelper.js";
 
 const refreshSI = async(brand,dealer,brandid,dealerid,reqid) =>{
 try {
