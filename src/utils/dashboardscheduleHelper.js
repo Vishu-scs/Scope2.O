@@ -225,7 +225,7 @@ const checkisUserValid = async(addedby)=>{
 }
 const checkGroupSetting = async(dealerid)=>{
   const pool = await getPool1()
-  const query = `  	SELECT  CASE 
+  const query = `  use z_scope SELECT  CASE 
         WHEN EXISTS (SELECT 1 FROM Dealer_setting_master WHERE dealerid = 8 AND locationid = 0) THEN 'YES'
         ELSE 'NO'
     END AS CID;`

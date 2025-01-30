@@ -184,7 +184,7 @@ const uploadSchedule = async (req, res) => {
     }
 };
 function scheduleTask() {
-  cron.schedule('*/5 * * * *', async () => {
+  cron.schedule('*/1 * * * *', async () => {
     console.log("Running scheduler in every 5 minutes")
     try {
       const pool = await getPool1()
@@ -369,14 +369,23 @@ const fetchRequests = async () => {
   }
 };
 
-// const test = async(req,res)=>{
-//   const pool = await getPool2();
-//   try {
-//     const result = await pool.request().query(`select * from [dbo].[DB_DashboardMaster]`)
-//     res.status(200).json({res:result.recordset})
-//   } catch (error) {
-//     res.status(500).send(error.message)
+// const changeLog = async()=>{
+ 
+//   const pool = await getPool1()
+//   const {dashboardcode , workspaceid , refbrandid , refdealerid ,changeby , requestby , requeston , url} = req.body
+//   if(!dashboardcode || !workspaceid || !refbrandid || !refdealerid || !changeby || !requestby || !requeston || !url){
+//     return res.status(400).json({message:`All fields are required`})
 //   }
+//   const query = ``
+//   const result = await pool.request.input('dashboardcode',sql.TinyInt,dashboardcode)
+//                                     .input('workspaceid',sql.TinyInt,workspaceid)
+//                                     .input('refbrandid',sql.SmallInt,refbrandid)
+//                                     .input('refdealerid',sql.Int,refdealerid)
+//                                     .input('changeby',sql.Int,changeby)
+//                                     .input('requestby',sql.Int,requestby)
+//                                     .input('requeston',sql.DateTime,requeston)
+//                                     .input('url',sql.NVarChar(max),url)
+//                                     .query(query)
 // }
 export {getDashboard,getBrandsforDashboard,getDealersforDashboard,uploadSchedule,getRequests,getBDM,editSchedule,scheduleTask,deleteReq}
 
