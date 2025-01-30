@@ -4,100 +4,108 @@ import {dataValidator,checkisAlreadyScheduled,checkisUserValid} from '../utils/d
 import cron from 'node-cron'
 import {refreshBenchmarking, refreshPPNI, refreshSI, refreshTOPS, refreshCID, refreshSpecialList} from '../utils/refreshDashboard.js'
 
-const getDashboard = async(req,res)=>{
-    const pool = await getPool1();
-    
-try {  
-      const query = ` use [z_scope] select tCode,Dashboard from DB_DashboardMaster where status = 1`
-      const result = await pool.request().query(query)
-      
-      return res.status(200).json({Data:result.recordset})
-} catch (error) {
-  if(error.message=== `Invalid object name'DB_DashboardMaster'.`){
-    console.log(`Something Wrong`);
-    
-  }
-     console.log(error.message);
-     
-    res.status(500).json({details:error.message})
-}
-}
-const getBrandsforDashboard = async (req, res) => {
+// const getBrandsforDashboard = async (req, res) => {
+//   const pool = await getPool1();
+//   try {
+//     const { DashboardCode } = req.body;
+
+//     // Validate that DashboardCodes is an array and not empty
+//     if (!Array.isArray(DashboardCode) || DashboardCode.length === 0) {
+//       return res.status(400).json({ error: "DashboardCodes must be a non-empty array." });
+//     }
+
+//     // Construct a dynamic query with placeholders for each DashboardCode
+//     const placeholders = DashboardCode.map((_, index) => `@DashboardCode${index}`).join(', ');
+//     const query = `
+//       USE [z_scope];
+//       SELECT li.brand, li.brandid
+//       FROM [dbo].[DB_DashboardLocMapping] dlm
+//       JOIN locationinfo li ON li.locationid = dlm.LocationID
+//       WHERE dlm.DashboardCode IN (${placeholders}) and li.ogsstatus = 1 and li.status =1 and dlm.status = 1
+//       GROUP BY li.brand, li.brandid
+//       HAVING COUNT(DISTINCT dlm.DashboardCode) = @TotalDashboardCodes
+//       ORDER BY li.brandid;
+//     `;
+
+//     // Bind each DashboardCode to a parameter
+//     const request = pool.request();
+//     DashboardCode.forEach((code, index) => {
+//       request.input(`DashboardCode${index}`, sql.Int, code);
+//     });
+
+//     // Bind the total count of DashboardCodes
+//     request.input("TotalDashboardCodes", sql.Int, DashboardCode.length);
+
+//     const result = await request.query(query);
+
+//     // Respond with the result
+//     res.status(200).json({Brands:result.recordset });
+//   } catch (error) {
+//     console.error("Error fetching common brands for dashboards:", error.message);
+//     res.status(500).send(error.message);
+//   }
+// };
+// const getDealersforDashboard = async(req,res)=>{
+// const pool = await getPool1();
+// try {
+//   const {DashboardCode,brandid} = req.body
+
+//   if (!Array.isArray(DashboardCode) || DashboardCode.length === 0) {
+//     return res.status(400).json({ error: "DashboardCodes must be a non-empty array." });
+//   }
+//   const placeholders = DashboardCode.map((_, index) => `@DashboardCode${index}`).join(', ');
+//   const query =`USE [z_scope];
+//       SELECT li.dealer, li.dealerid
+//       FROM [dbo].[DB_DashboardLocMapping] dlm
+//       JOIN locationinfo li ON li.locationid = dlm.LocationID
+//       WHERE dlm.DashboardCode IN (${placeholders}) and brandid = @brandid and li.ogsstatus = 1 and li.status =1 and dlm.status = 1
+// 	  GROUP BY li.dealer, li.dealerid
+//       HAVING COUNT(DISTINCT dlm.DashboardCode) = @TotalDashboardCodes 
+// 	  ORDER BY li.dealerid;`
+//   // const result = await pool.request().input('brandid',sql.Int,brandid).input('DashboardCode',sql.Int,DashboardCode).query(query)
+//   // console.log(result.recordset);
+
+//   const request = pool.request();
+//     DashboardCode.forEach((code, index) => {
+//       request.input(`DashboardCode${index}`, sql.Int, code);
+//     });
+
+//     // Bind the total count of DashboardCodes
+//     request.input("TotalDashboardCodes", sql.Int, DashboardCode.length);
+
+//     const result = await request.input('brandid',sql.Int,brandid).query(query);
+
+//   res.status(200).json({Dealers:result.recordset})
+// } catch (error) {
+//   res.status(500).send(error.message)
+// }
+
+// }
+
+const getDashboardbyDealer = async(req,res)=>{
   const pool = await getPool1();
-  try {
-    const { DashboardCode } = req.body;
-
-    // Validate that DashboardCodes is an array and not empty
-    if (!Array.isArray(DashboardCode) || DashboardCode.length === 0) {
-      return res.status(400).json({ error: "DashboardCodes must be a non-empty array." });
+  const {dealerid} = req.body
+try {  
+    const query = `use [z_scope] select dm.tcode , dm.Dashboard from DB_DashboardLocMapping dlm
+                  join LocationInfo li on li.LocationID = dlm.LocationID
+                  join DB_DashboardMaster dm on dm.tCode = dlm.DashboardCode
+                  where dealerid = @dealerid and dlm.Status = 1 and li.OgsStatus = 1 and li.Status = 1 and dm.Status = 1
+                  group by dm.tcode , dm.Dashboard`
+    const result = await pool.request().input('dealerid',sql.Int,dealerid).query(query)
+    if(Array.isArray(result.recordset) && result.recordset.length === 0){
+        return res.status(400).json({message:`No Dashboard Exist for Dealerid. You can request a New Dashboard`})
     }
-
-    // Construct a dynamic query with placeholders for each DashboardCode
-    const placeholders = DashboardCode.map((_, index) => `@DashboardCode${index}`).join(', ');
-    const query = `
-      USE [z_scope];
-      SELECT li.brand, li.brandid
-      FROM [dbo].[DB_DashboardLocMapping] dlm
-      JOIN locationinfo li ON li.locationid = dlm.LocationID
-      WHERE dlm.DashboardCode IN (${placeholders}) and li.ogsstatus = 1 and li.status =1 and dlm.status = 1
-      GROUP BY li.brand, li.brandid
-      HAVING COUNT(DISTINCT dlm.DashboardCode) = @TotalDashboardCodes
-      ORDER BY li.brandid;
-    `;
-
-    // Bind each DashboardCode to a parameter
-    const request = pool.request();
-    DashboardCode.forEach((code, index) => {
-      request.input(`DashboardCode${index}`, sql.Int, code);
-    });
-
-    // Bind the total count of DashboardCodes
-    request.input("TotalDashboardCodes", sql.Int, DashboardCode.length);
-
-    const result = await request.query(query);
-
-    // Respond with the result
-    res.status(200).json({Brands:result.recordset });
-  } catch (error) {
-    console.error("Error fetching common brands for dashboards:", error.message);
-    res.status(500).send(error.message);
-  }
-};
-const getDealersforDashboard = async(req,res)=>{
-const pool = await getPool1();
-try {
-  const {DashboardCode,brandid} = req.body
-
-  if (!Array.isArray(DashboardCode) || DashboardCode.length === 0) {
-    return res.status(400).json({ error: "DashboardCodes must be a non-empty array." });
-  }
-  const placeholders = DashboardCode.map((_, index) => `@DashboardCode${index}`).join(', ');
-  const query =`USE [z_scope];
-      SELECT li.dealer, li.dealerid
-      FROM [dbo].[DB_DashboardLocMapping] dlm
-      JOIN locationinfo li ON li.locationid = dlm.LocationID
-      WHERE dlm.DashboardCode IN (${placeholders}) and brandid = @brandid and li.ogsstatus = 1 and li.status =1 and dlm.status = 1
-	  GROUP BY li.dealer, li.dealerid
-      HAVING COUNT(DISTINCT dlm.DashboardCode) = @TotalDashboardCodes 
-	  ORDER BY li.dealerid;`
-  // const result = await pool.request().input('brandid',sql.Int,brandid).input('DashboardCode',sql.Int,DashboardCode).query(query)
-  // console.log(result.recordset);
-
-  const request = pool.request();
-    DashboardCode.forEach((code, index) => {
-      request.input(`DashboardCode${index}`, sql.Int, code);
-    });
-
-    // Bind the total count of DashboardCodes
-    request.input("TotalDashboardCodes", sql.Int, DashboardCode.length);
-
-    const result = await request.input('brandid',sql.Int,brandid).query(query);
-
-  res.status(200).json({Dealers:result.recordset})
+    
+    return res.status(200).json({Data:result.recordset})
 } catch (error) {
-  res.status(500).send(error.message)
+if(error.message=== `Invalid object name'DB_DashboardMaster'.`){
+  console.log(`Something Wrong`);
+  
 }
-
+   console.log(error.message);
+   
+  res.status(500).json({details:error.message})
+}
 }
 const uploadSchedule = async (req, res) => {
     const pool = getPool1();
@@ -167,7 +175,7 @@ const uploadSchedule = async (req, res) => {
             .input("brandid", sql.Int, brandid)
             .input("dealer", sql.VarChar, dealer)
             .input("dealerid", sql.Int, dealerid)
-            .input("scheduledon", sql.DateTime, scheduledDate)
+            .input("scheduledon", sql.DateTime, scheduledon)
             .input("addedby", sql.Int, addedby)
             .query(query);
         }
@@ -368,24 +376,91 @@ const fetchRequests = async () => {
     throw new Error('Failed to fetch requests.');
   }
 };
+const changeLog = async(req,res)=>{
+try {
+    const pool = await getPool1()
+    const {dashboardcode , workspaceid , refbrandid , refdealerid ,changeby , requestby , requeston , url} = req.body
+    if(!dashboardcode || !workspaceid || !refbrandid || !refdealerid || !changeby || !requestby || !requeston || !url){
+      return res.status(400).json({message:`All fields are required`})
+    }
+    const query = `insert into UAD_BI..SBS_DBS_ChangeLog(dashboardcode,workspaceid,refbrandid, refdealerid,changedby,changedon,requestby,requeston,url)
+                  values(@dashboardcode,@workspaceid,@refbrandid,@refdealerid,@changeby,GETDATE(),@requestby,@requeston,@url)
+  
+  `
+    await pool.request().input('dashboardcode',sql.TinyInt,dashboardcode)
+                                      .input('workspaceid',sql.TinyInt,workspaceid)
+                                      .input('refbrandid',sql.SmallInt,refbrandid)
+                                      .input('refdealerid',sql.Int,refdealerid)
+                                      .input('changeby',sql.Int,changeby)
+                                      .input('requestby',sql.Int,requestby)
+                                      .input('requeston',sql.DateTime,requeston)
+                                      .input('url',sql.NVarChar,url)
+                                      .query(query)
+        res.status(201).json({message:"Dashboard Changes are Successfully Tracked"})
+} catch (error) {
+   res.status(500).json({Error:error.message});
+  console.log(error.message);
+  
+}
+}
+const changelogView = async(req,res)=>{
+    try {
+      const pool  = await getPool1()
+      const query = `use [UAD_BI]
+                      SELECT DISTINCT dm.Dashboard,  wm.Workspace,  li.Brand,  li.Dealer,  CONCAT(adm.vcFirstName, ' ', adm.vcLastName) AS ChangedBy,   cl.ChangedOn, am.Name AS RequestedBy,   cl.RequestOn,   cl.Url  
+                      FROM SBS_DBS_ChangeLog cl  
+                      LEFT JOIN z_scope..locationinfo li ON li.dealerid = cl.refdealerid  
+                      LEFT JOIN z_scope..db_dashboardmaster dm ON dm.tcode = cl.DashboardCode  
+                      LEFT JOIN SBS_DBS_AdminMaster am ON am.Aid = cl.Requestby  
+                      LEFT JOIN SBS_DBS_WorkspaceMaster wm ON wm.WorkspaceID = cl.Workspaceid  
+                      LEFT JOIN z_scope..AdminMaster_GEN adm ON adm.bintId_Pk = cl.Changedby  
+                      GROUP BY  dm.Dashboard,  wm.Workspace,  li.Brand,  li.Dealer,  adm.vcFirstName,  adm.vcLastName,  cl.ChangedOn,  am.Name,  cl.RequestOn,  cl.Url;`
+  
+      const result = await pool.request().query(query)
+      res.status(200).json({Data:result.recordset})
+    } catch (error) {
+       res.status(500).json(error.message)    
+      }
+  
+  }
+const requestNewDashboard = async(req,res)=>{
+  try {
+    const pool = await getPool1()
+    const {brandid ,brand, dealer,  dealerid , dashboardcode , scheduledon , addedby} = req.body
+    if(!brandid || !brand || !dealer || !dealerid || !dashboardcode || !scheduledon || !addedby){
+      return res.status(400).json({message:`All Fields are Required`})
+    }
+    let query = `use [UAD_BI] 
+                  INSERT INTO SBS_DBS_DashboardDealerMapping (DashboardCode, DealerID)
+                  values(@dashboardcode , @dealerid) `
 
-// const changeLog = async()=>{
- 
-//   const pool = await getPool1()
-//   const {dashboardcode , workspaceid , refbrandid , refdealerid ,changeby , requestby , requeston , url} = req.body
-//   if(!dashboardcode || !workspaceid || !refbrandid || !refdealerid || !changeby || !requestby || !requeston || !url){
-//     return res.status(400).json({message:`All fields are required`})
-//   }
-//   const query = ``
-//   const result = await pool.request.input('dashboardcode',sql.TinyInt,dashboardcode)
-//                                     .input('workspaceid',sql.TinyInt,workspaceid)
-//                                     .input('refbrandid',sql.SmallInt,refbrandid)
-//                                     .input('refdealerid',sql.Int,refdealerid)
-//                                     .input('changeby',sql.Int,changeby)
-//                                     .input('requestby',sql.Int,requestby)
-//                                     .input('requeston',sql.DateTime,requeston)
-//                                     .input('url',sql.NVarChar(max),url)
-//                                     .query(query)
-// }
-export {getDashboard,getBrandsforDashboard,getDealersforDashboard,uploadSchedule,getRequests,getBDM,editSchedule,scheduleTask,deleteReq}
+       try {
+         await pool.request().input('dashboardcode',sql.Int,dashboardcode).input('dealerid',sql.Int,dealerid).query(query)
+       } catch (error) {
+        return res.status(500).json({message:`Error in mapping new dashbaord and dealerid`},{error:error.message})
+       }
+    
+     query = `use [norms] INSERT INTO ScheduledDashboard (Dashboardcode, Brandid, Brand, Dealerid, Dealer, Scheduledon, Addedby, Addedon)
+                    VALUES (@dashboardcode, @brandid, @brand, @dealerid, @dealer, @scheduledon, @addedby, GETDATE());`
+                    
+                    await pool.request()
+                      .input("dashboardcode", sql.Int, dashboardcode) 
+                      .input("brand", sql.VarChar, brand)
+                      .input("brandid", sql.Int, brandid)
+                      .input("dealer", sql.VarChar, dealer)
+                      .input("dealerid", sql.Int, dealerid)
+                      .input("scheduledon", sql.DateTime, scheduledon)
+                      .input("addedby", sql.Int, addedby)
+                      .query(query);
+
+          res.status(201).json({message:`Request for new Dashboard Successfully Submitted`})
+  } catch (error) {
+    res.status(500).json({message:error.message})
+  }
+}
+export {getDashboardbyDealer,uploadSchedule,getRequests,getBDM,editSchedule,scheduleTask,deleteReq,changeLog,changelogView,requestNewDashboard}
+
+
+
+
 

@@ -211,7 +211,6 @@ const checkisAlreadyScheduled = async (dashboardcode, brandid, dealerid) => {
     throw error;
   }
 };
-
 // Checking User is Authorised to Perform Actions or not 
 const checkisUserValid = async(addedby)=>{
   const pool = await getPool1()

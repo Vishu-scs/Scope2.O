@@ -4,13 +4,15 @@ import { scheduleTask } from './controller/dashboardSchedulerController.js'
 
 import dashboardSchedule from './routes/dashboardSchedulerRoute.js'
 import salesView from './routes/salesViewRoute.js'
+import MasterApi from './routes/MasterApiRoute.js'
 const app = express()
 app.use(cors())
 app.use(express.json());
 
-scheduleTask()
+// scheduleTask()
 
 
+app.use("/api/v1/Master", MasterApi)
 app.use("/api/v1/dashboardscheduler", dashboardSchedule)
 app.use("/api/v1/salesview", salesView)
 
