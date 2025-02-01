@@ -1,7 +1,7 @@
 import sql from 'mssql'
+import cron from 'node-cron'
 import {getPool1} from '../db/db.js'
 import {dataValidator,checkisAlreadyScheduled,checkisUserValid} from '../utils/dashboardscheduleHelper.js'
-import cron from 'node-cron'
 import {refreshBenchmarking, refreshPPNI, refreshSI, refreshTOPS, refreshCID, refreshSpecialList} from '../utils/refreshDashboard.js'
 
 // const getBrandsforDashboard = async (req, res) => {
@@ -86,8 +86,7 @@ const getDashboardbyDealer = async(req,res)=>{
   const pool = await getPool1();
   const {dealerid} = req.body
 try {  
-    const query = `use [z_scope] select dm.tcode , dm.Dashboard from DB_DashboardLocMapping dlm
-                  join LocationInfo li on li.LocationID = dlm.LocationID
+    const query = `use [z_scope] select dm.tCode , dm.Dashboard from DB_DashboardLocMapping dlm                  join LocationInfo li on li.LocationID = dlm.LocationID
                   join DB_DashboardMaster dm on dm.tCode = dlm.DashboardCode
                   where dealerid = @dealerid and dlm.Status = 1 and li.OgsStatus = 1 and li.Status = 1 and dm.Status = 1
                   group by dm.tcode , dm.Dashboard`
@@ -191,53 +190,6 @@ const uploadSchedule = async (req, res) => {
       res.status(500).json({ message: error.message });
     }
 };
-function scheduleTask() {
-  cron.schedule('*/1 * * * *', async () => {
-    console.log("Running scheduler in every 5 minutes")
-    try {
-      const pool = await getPool1()
-
-      // Fetch tasks to be executed
-      // status = 0 (when request is pending)
-      const query = `use [norms]
-                SELECT reqid, dashboardcode, brand, brandid, dealer, dealerid, scheduledon
-                FROM scheduleddashboard where status = 0
-
-          `
-      const result = await pool.request().query(query)
-      const tasks = result.recordset
-      // console.log(tasks);
-      
-      if (Array.isArray(tasks) && !tasks.length) {
-        console.log(`No request Scheduled in 5 minutes`)
-      }
-
-      for (const task of tasks) {        
-        // console.log(`Processing task for dashboardcode: ${task.dashboardcode}, dealer :${task.dealer} ,scheduledon: ${task.scheduledon}`);
-
-        // Mark Status
-        // status = 1 (when request is went for data refresh "SP IS RUNNING")
-        await pool.request()
-          .input('reqid', sql.Int, task.reqid)
-          .query(`use [norms]
-                      UPDATE scheduleddashboard
-                      SET status = 1
-                      WHERE reqid = @reqid
-                  `)
-
-        // Perform the refresh logic here
-        if (task.dashboardcode == 7)  { await refreshPPNI(task.brandid, task.dealerid,task.reqid)} 
-        if (task.dashboardcode == 8)  { await refreshTOPS(task.dealerid,task.reqid)} 
-        if (task.dashboardcode == 9)  { await refreshSpecialList(task.reqid)} 
-        if (task.dashboardcode == 12) { await refreshBenchmarking(task.dealerid,task.reqid)} 
-        if (task.dashboardcode == 13 || task.dashboardcode == 14) { await refreshSI(task.brand, task.dealer, task.brandid, task.dealerid,task.reqid)} 
-        if (task.dashboardcode == 15) { await refreshCID(task.dealerid,task.reqid)} 
-      }
-    } catch (error) {
-      console.error("Error processing scheduled tasks:", error.message)
-    }
-  })
-}
 const getBDM = async(req,res)=>{
   const pool = await getPool1()
 try {
@@ -457,6 +409,112 @@ const requestNewDashboard = async(req,res)=>{
   } catch (error) {
     res.status(500).json({message:error.message})
   }
+}
+// function scheduleTask() {
+//   cron.schedule('*/1 * * * *', async () => {
+//     console.log("Running scheduler in every 5 minutes")
+//     try {
+//       const pool = await getPool1()
+
+//       // Fetch tasks to be executed
+//       // status = 0 (when request is pending)
+//       const query = `use [norms]
+//                 SELECT reqid, dashboardcode, brand, brandid, dealer, dealerid, scheduledon
+//                 FROM scheduleddashboard where status = 0
+
+//           `
+//       const result = await pool.request().query(query)
+//       const tasks = result.recordset
+//       // console.log(tasks);
+      
+//       if (Array.isArray(tasks) && !tasks.length) {
+//         console.log(`No request Scheduled in 5 minutes`)
+//       }
+
+//       for (const task of tasks) {        
+//         // console.log(`Processing task for dashboardcode: ${task.dashboardcode}, dealer :${task.dealer} ,scheduledon: ${task.scheduledon}`);
+
+//         // Mark Status
+//         // status = 1 (when request is went for data refresh "SP IS RUNNING")
+//         await pool.request()
+//           .input('reqid', sql.Int, task.reqid)
+//           .query(`use [norms]
+//                       UPDATE scheduleddashboard
+//                       SET status = 1
+//                       WHERE reqid = @reqid
+//                   `)
+
+//         // Perform the refresh logic here
+//         if (task.dashboardcode == 7)  { await refreshPPNI(task.brandid, task.dealerid,task.reqid)} 
+//         if (task.dashboardcode == 8)  { await refreshTOPS(task.dealerid,task.reqid)} 
+//         if (task.dashboardcode == 9)  { await refreshSpecialList(task.reqid)} 
+//         if (task.dashboardcode == 12) { await refreshBenchmarking(task.dealerid,task.reqid)} 
+//         if (task.dashboardcode == 13 || task.dashboardcode == 14) { await refreshSI(task.brand, task.dealer, task.brandid, task.dealerid,task.reqid)} 
+//         if (task.dashboardcode == 15) { await refreshCID(task.dealerid,task.reqid)} 
+//         else{
+//           res.status(400).json({message:`DashboardCode in Invalid`})
+//         }
+//       }
+//     } catch (error) {
+//       console.error("Error processing scheduled tasks:", error.message)
+//     }
+//   })
+// }
+function scheduleTask() {
+  cron.schedule('*/2 * * * *', async () => { 
+    console.log("Running scheduler every 2 minutes")
+
+    try {
+      const pool = await getPool1()
+
+      // Fetch tasks to be executed (status = 0 means pending)
+      const query = `use [norms]
+                     SELECT reqid, dashboardcode, brand, brandid, dealer, dealerid, scheduledon
+                     FROM scheduleddashboard 
+                     WHERE status = 0`
+      const result = await pool.request().query(query)
+      const tasks = result.recordset
+
+      if (!tasks.length) {
+        console.log(`No requests scheduled in the last 5 minutes.`)
+        return
+      }
+
+      // Process all tasks in parallel
+      const taskPromises = tasks.map(async (task) => {
+        console.log(`Processing task for dashboardcode: ${task.dashboardcode}, dealer: ${task.dealer}, scheduledon: ${task.scheduledon}`)
+
+        try {
+          // Mark status as "SP IS RUNNING In-Progress" (1)
+          await pool.request()
+            .input('reqid', sql.Int, task.reqid)
+            .query(`use [norms] UPDATE scheduleddashboard SET status = 1 WHERE reqid = @reqid`)
+
+          // Fire refresh functions asynchronously
+          switch (task.dashboardcode) {
+            case 7: return refreshPPNI(task.brandid, task.dealerid, task.reqid)
+            case 8: return refreshTOPS(task.dealerid, task.reqid)
+            case 9: return refreshSpecialList(task.reqid)
+            case 12: return refreshBenchmarking(task.dealerid, task.reqid)
+            case 13:
+            case 14: return refreshSI(task.brand, task.dealer, task.brandid, task.dealerid, task.reqid)
+            case 15: return refreshCID(task.dealerid, task.reqid)
+            default:
+              console.error(`Invalid dashboardCode: ${task.dashboardcode} for reqid: ${task.reqid}`)
+          }
+        } catch (error) {
+          console.error(`Error processing dashboardCode ${task.dashboardcode} for reqid: ${task.reqid}:`, error.message)
+        }
+      })
+
+      // Wait for all tasks to push queries to the DB asynchronously
+      await Promise.allSettled(taskPromises)
+
+      console.log("All scheduled tasks processed asynchronously")
+    } catch (error) {
+      console.error("Error processing scheduled tasks:", error.message)
+    }
+  })
 }
 export {getDashboardbyDealer,uploadSchedule,getRequests,getBDM,editSchedule,scheduleTask,deleteReq,changeLog,changelogView,requestNewDashboard}
 
