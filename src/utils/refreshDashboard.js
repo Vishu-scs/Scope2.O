@@ -17,7 +17,7 @@ try {
              .query(query)
    
    console.log(`Data Refreshing SI`);
-   query = `use norms Update ScheduledDashboard set status = 3 where reqid = @reqid`
+   query = `use [UAD_BI] Update SBS_DBS_ScheduledDashboard set status = 3 where reqid = @reqid`
          await pool.request().input('reqid',sql.Int,reqid).query(query)
 
 } catch (error) {
@@ -35,7 +35,7 @@ const refreshBenchmarking = async(dealerid,reqid)=>{
       let Check =  isDataRefreshed(result.recordset[0])
       //Data Refresh Done Successfully
       if(Check){
-         query = `use norms Update ScheduledDashboard set status = 3 where reqid = @reqid`
+         query = `use [UAD_BI] Update SBS_DBS_ScheduledDashboard set status = 3 where reqid = @reqid`
          await pool.request().input('reqid',sql.Int,reqid).query(query)
       }
       //Data Refresh Failed 
@@ -50,10 +50,10 @@ const refreshBenchmarking = async(dealerid,reqid)=>{
       // Handle the failure scenario: update status to 2
       try {
         const pool = await getPool1();
-        const query = `use norms Update ScheduledDashboard set status = 2 where reqid = @reqid`;
+        const query = `use [UAD_BI] Update SBS_DBS_ScheduledDashboard set status = 2 where reqid = @reqid`;
         await pool.request().input('reqid', sql.Int, reqid).query(query);
       } catch (updateError) {
-        console.error("Error updating ScheduledDashboard:", updateError.message);
+        console.error("Error updating SBS_DBS_ScheduledDashboard:", updateError.message);
       }
     }
 }
@@ -71,7 +71,7 @@ const refreshCID = async(dealerid,reqid)=>{
       let Check =  isDataRefreshed(result.recordset[0])
       //Data Refresh Done Successfully
       if(Check){
-         query = `use norms Update ScheduledDashboard set status = 3 where reqid = @reqid`
+         query = `use [UAD_BI] Update SBS_DBS_ScheduledDashboard set status = 3 where reqid = @reqid`
          await pool.request().input('reqid',sql.Int,reqid).query(query)
       }
 
@@ -81,10 +81,10 @@ const refreshCID = async(dealerid,reqid)=>{
    console.error("Error refreshing CID:", error.message);
    try {
       const pool = await getPool1();
-      const query = `use norms Update ScheduledDashboard set status = 2 where reqid = @reqid`;
+      const query = `use [UAD_BI] Update SBS_DBS_ScheduledDashboard set status = 2 where reqid = @reqid`;
       await pool.request().input('reqid', sql.Int, reqid).query(query);
     } catch (updateError) {
-      console.error("Error updating ScheduledDashboard:", updateError.message);
+      console.error("Error updating SBS_DBS_ScheduledDashboard:", updateError.message);
     }
    }
 }
@@ -98,7 +98,7 @@ const refreshPPNI = async(brandid,dealerid,reqid)=>{
       let Check =  isDataRefreshed(result.recordset[0])
       //Data Refresh Done Successfully
       if(Check){
-         query = `use norms Update ScheduledDashboard set status = 3 where reqid = @reqid`
+         query = `use [UAD_BI] Update SBS_DBS_ScheduledDashboard set status = 3 where reqid = @reqid`
          await pool.request().input('reqid',sql.Int,reqid).query(query)
       }
       //Data Refresh Failed 
@@ -112,10 +112,10 @@ const refreshPPNI = async(brandid,dealerid,reqid)=>{
    console.error("Error refreshing PPNI:", error.message);
    try {
       const pool = await getPool1();
-      const query = `use norms Update ScheduledDashboard set status = 2 where reqid = @reqid`;
+      const query = `use [UAD_BI] Update SBS_DBS_ScheduledDashboard set status = 2 where reqid = @reqid`;
       await pool.request().input('reqid', sql.Int, reqid).query(query);
     } catch (updateError) {
-      console.error("Error updating ScheduledDashboard:", updateError.message);
+      console.error("Error updating SBS_DBS_ScheduledDashboard:", updateError.message);
     }
    }
 }
@@ -124,7 +124,7 @@ const refreshSpecialList = async(reqid)=>{
       const pool = await getPool1()
       console.log(`Data Refreshing Special List`);
       //Data is Always Refreshed in Special List 
-      let query = `use norms Update ScheduledDashboard set status = 3 where reqid = @reqid`
+      let query = `use [UAD_BI] Update SBS_DBS_ScheduledDashboard set status = 3 where reqid = @reqid`
        await pool.request().input('reqid',sql.Int,reqid).query(query)
    } catch (error) {
    //  res.status(500).send(error.message)
@@ -141,7 +141,7 @@ const refreshTOPS = async(dealerid,reqid)=>{
       let Check =  isDataRefreshed(result.recordset[0])
       //Data Refresh Done Successfully
       if(Check){
-         query = `use norms Update ScheduledDashboard set status = 3 where reqid = @reqid`
+         query = `use [UAD_BI] Update SBS_DBS_ScheduledDashboard set status = 3 where reqid = @reqid`
          await pool.request().input('reqid',sql.Int,reqid).query(query)
       }
       //Data Refresh Failed 
@@ -155,10 +155,10 @@ const refreshTOPS = async(dealerid,reqid)=>{
       // Handle the failure scenario: update status to 2
       try {
         const pool = await getPool1();
-        const query = `use norms Update ScheduledDashboard set status = 2 where reqid = @reqid`;
+        const query = `use [UAD_BI] Update SBS_DBS_ScheduledDashboard set status = 2 where reqid = @reqid`;
         await pool.request().input('reqid', sql.Int, reqid).query(query);
       } catch (updateError) {
-        console.error("Error updating ScheduledDashboard:", updateError.message);
+        console.error("Error updating SBS_DBS_ScheduledDashboard:", updateError.message);
       }
     }
 }

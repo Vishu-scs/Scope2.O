@@ -165,8 +165,8 @@ const uploadSchedule = async (req, res) => {
           return res.status(401).json({message:`Dashboard Already Scheduled`})
          }
          
-        const query = ` use norms
-            INSERT INTO ScheduledDashboard (Dashboardcode, Brandid, Brand, Dealerid, Dealer, Scheduledon, Addedby, Addedon)
+        const query = ` use [UAD_BI]
+            INSERT INTO SBS_DBS_ScheduledDashboard (Dashboardcode, Brandid, Brand, Dealerid, Dealer, Scheduledon, Addedby, Addedon)
             VALUES (@dashboardcode, @brandid, @brand, @dealerid, @dealer, @scheduledon, @addedby, GETDATE());`;
           await pool.request()
             .input("dashboardcode", sql.Int, dashboardcode)  // Unique input for each iteration
@@ -234,7 +234,7 @@ const editSchedule = async (req, res) => {
     }
     // Fetch data from both databases
     const query = `
-      SELECT addedby, status FROM norms.dbo.ScheduledDashboard WHERE reqid = @reqid;
+      SELECT addedby, status FROM UAD_BI.dbo.SBS_DBS_ScheduledDashboard WHERE reqid = @reqid;
       SELECT designation, isBDM FROM z_scope.dbo.adminmaster_gen WHERE bintid_pk = @bintid_pk;
     `;
 
@@ -267,7 +267,7 @@ const editSchedule = async (req, res) => {
 
     // Update schedule
     const updateQuery = `
-      UPDATE norms.dbo.ScheduledDashboard
+      UPDATE UAD_BI.dbo.SBS_DBS_ScheduledDashboard
       SET scheduledon = @scheduledon, editedby = @editedby, editedon = GETDATE()
       WHERE reqid = @reqid;
     `;
@@ -295,7 +295,7 @@ try {
     return res.status(401).json({details:'reqid and userid is required in this request'})
   }
   // status = 6 (Marked status = 6 when schedule is deleted explicitly only be done when status = 0)
-  const query = `use norms update scheduledDashboard set status = 6 , Deletedby = @bintid_pk , Deletedon = GETDATE() where reqid = @reqid`
+  const query = `use UAD_BI update SBS_DBS_ScheduledDashboard set status = 6 , Deletedby = @bintid_pk , Deletedon = GETDATE() where reqid = @reqid`
   await pool.request().input('reqid',sql.Int,reqid).input('bintid_pk',sql.Int,bintid_pk).query(query)
   const updatedRequests = await fetchRequests();
      res.status(200).json({ message: 'Schedule Deleted successfully.', Requests: updatedRequests.recordset });
@@ -307,13 +307,13 @@ const fetchRequests = async () => {
   const pool = await getPool1();
   try {
     const query = `
-      use norms select 
+      use [UAD_BI] select 
       sd.reqid, dm.Dashboard , sd.Brand, sd.Dealer, sd.ScheduledOn ,sm.StatusName , 
       CONCAT(amg1.vcFirstName, ' ', amg1.vcLastName) AS Addedby , sd.Addedon ,
       CASE WHEN sd.Editedby = amg2.bintId_Pk THEN CONCAT(amg2.vcFirstName, ' ', amg2.vcLastName) END AS Editedby, sd.Editedon , 
       CASE WHEN sd.Deletedby = amg3.bintId_Pk THEN CONCAT(amg3.vcFirstName, ' ', amg3.vcLastName) END AS Deletedby, sd.Deletedon,
       CASE WHEN d.BDMCode = amg4.bintId_Pk THEN CONCAT(amg4.vcFirstName, ' ', amg4.vcLastName) END AS BDM
-      from ScheduledDashboard sd
+      from SBS_DBS_ScheduledDashboard sd
       join z_scope..DB_DashboardMaster dm ON sd.DashboardCode = dm.tCode
       join UAD_BI..SBS_DBS_STATUS_MASTER sm on sd.status = sm.status
       join z_scope..Dealer_Master d on d.bigid = sd.Dealerid
@@ -392,7 +392,7 @@ const requestNewDashboard = async(req,res)=>{
         return res.status(500).json({message:`Error in mapping new dashbaord and dealerid`},{error:error.message})
        }
     
-     query = `use [norms] INSERT INTO ScheduledDashboard (Dashboardcode, Brandid, Brand, Dealerid, Dealer, Scheduledon, Addedby, Addedon)
+     query = `use [UAD_BI] INSERT INTO SBS_DBS_ScheduledDashboard (Dashboardcode, Brandid, Brand, Dealerid, Dealer, Scheduledon, Addedby, Addedon)
                     VALUES (@dashboardcode, @brandid, @brand, @dealerid, @dealer, @scheduledon, @addedby, GETDATE());`
                     
                     await pool.request()
@@ -468,9 +468,9 @@ function scheduleTask() {
       const pool = await getPool1()
 
       // Fetch tasks to be executed (status = 0 means pending)
-      const query = `use [norms]
+      const query = `use [UAD_BI]
                      SELECT reqid, dashboardcode, brand, brandid, dealer, dealerid, scheduledon
-                     FROM scheduleddashboard 
+                     FROM SBS_DBS_ScheduledDashboard 
                      WHERE status = 0`
       const result = await pool.request().query(query)
       const tasks = result.recordset
@@ -488,7 +488,7 @@ function scheduleTask() {
           // Mark status as "SP IS RUNNING In-Progress" (1)
           await pool.request()
             .input('reqid', sql.Int, task.reqid)
-            .query(`use [norms] UPDATE scheduleddashboard SET status = 1 WHERE reqid = @reqid`)
+            .query(`use [UAD_BI] UPDATE SBS_DBS_ScheduledDashboard SET status = 1 WHERE reqid = @reqid`)
 
           // Fire refresh functions asynchronously
           switch (task.dashboardcode) {

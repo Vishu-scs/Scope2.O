@@ -165,14 +165,14 @@ const checkisAlreadyScheduled = async (dashboardcode, brandid, dealerid) => {
   const pool = await getPool1();
 
   const query = `
-    use norms 
+    use [UAD_BI] 
     SELECT scheduledon 
-    FROM scheduledDashboard  
+    FROM SBS_DBS_ScheduledDashboard  
     WHERE dashboardcode = @dashboardcode 
       AND dealerid = @dealerid 
       AND brandid = @brandid;
     SELECT * 
-    FROM scheduledDashboard 
+    FROM SBS_DBS_ScheduledDashboard 
     WHERE dashboardcode = @dashboardcode 
       AND dealerid = @dealerid 
       AND brandid = @brandid;
