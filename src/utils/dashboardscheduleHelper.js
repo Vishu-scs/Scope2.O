@@ -234,4 +234,28 @@ const checkGroupSetting = async(dealerid)=>{
   }
   return false;
 }
-export  {dataValidator,checkisAlreadyScheduled,checkisUserValid,checkGroupSetting};
+const checkisMappingExists = async (dashboardcode,dealerid)=>{
+  console.log(dashboardcode,dealerid);
+  try {
+    const pool  = await getPool1()
+    const query = `select dashboardcode , dealerid from UAD_BI..SBS_DBS_DashboardDealerMapping where dealerid = @dealerid and dashboardcode = @dashboardcode`
+    const result =  await pool.request()
+                    .input('dealerid',sql.Int,dealerid)
+                    .input('dashboardcode',sql.Int,dashboardcode)
+                    .query(query)
+    const dashboardcode = result.recordset.dashboardcode
+    const dealerid = result.recordset.dealerid
+    console.log(`true`);
+    if (dashboardcode == result.recordset.dashboardcode && dealerid == result.recordset.dealerid){
+      return false
+    }
+    else{
+     true
+    }
+  } catch (error) {
+    console.log(error.message);
+    throw error;
+  }
+  
+}
+export  {dataValidator,checkisAlreadyScheduled,checkisUserValid,checkGroupSetting,checkisMappingExists};

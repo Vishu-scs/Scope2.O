@@ -9,10 +9,10 @@ const app = express()
 app.use(cors())
 app.use(express.json());
 
-// scheduleTask()
+scheduleTask()
 
 
-app.use("/api/v1/Master", MasterApi)
+app.use("/api/v1/master", MasterApi)
 app.use("/api/v1/dashboardscheduler", dashboardSchedule)
 app.use("/api/v1/salesview", salesView)
 

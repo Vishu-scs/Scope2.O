@@ -34,5 +34,27 @@ const getLocation = async(req,res)=>{
         console.log(error);
     }
 }
+const getWorkspace = async(req,res)=>{
+    try {
+        const pool = getPool1();
+        // const {dealerid} = req.body;
+        const result = await pool.request().query(`select WorkspaceID, Workspace from UAD_BI..SBS_DBS_WorkspaceMaster`)
+        res.status(200).json(result.recordset)
+    } catch (error) {
+        res.status(500).json(error)
+        console.log(error);
+    }
+}
+const getDashboard = async(req,res)=>{
+    try {
+        const pool = getPool1();
+        // const {dealerid} = req.body;
+        const result = await pool.request().query(`select tcode , Dashboard from z_scope..DB_DASHboardmaster where status = 1`)
+        res.status(200).json(result.recordset)
+    } catch (error) {
+        res.status(500).json(error)
+        console.log(error);
+    }
+}
 
-export {getBrands,getDealers,getLocation}
+export {getBrands,getDealers,getLocation,getWorkspace,getDashboard}
