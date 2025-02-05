@@ -196,7 +196,7 @@ const checkisAlreadyScheduled = async (dashboardcode, brandid, dealerid) => {
     }
 
     const allowedtoscheduleon = new Date(lastscheduledfor);
-    allowedtoscheduleon.setDate(allowedtoscheduleon.getDate() + 1);
+    allowedtoscheduleon.setDate(allowedtoscheduleon.getDate() + 0);
 
     // Check if scheduling conditions are met
     if (result.recordsets[1].length === 0 || 
@@ -225,7 +225,7 @@ const checkisUserValid = async(addedby)=>{
 const checkGroupSetting = async(dealerid)=>{
   const pool = await getPool1()
   const query = `  use z_scope SELECT  CASE 
-        WHEN EXISTS (SELECT 1 FROM Dealer_setting_master WHERE dealerid = 8 AND locationid = 0) THEN 'YES'
+        WHEN EXISTS (SELECT 1 FROM Dealer_setting_master WHERE dealerid = @dealerid AND locationid = 0) THEN 'YES'
         ELSE 'NO'
     END AS CID;`
   const result = await pool.request().input('dealerid',sql.Int,dealerid).query(query)

@@ -507,11 +507,11 @@ const newDashboardSchedule = async (req, res) => {
         return res.status(400).json({ message: `Dashboard ${dashboardcode} is already scheduled.` });
       }
       //Checking Mapping Exists or not
-      
-      // let isMappingExists = checkisMappingExists(dashboardcode,dealerid)
-      // if(!isMappingExists){
-      //   return res.status(400).json({message:`Mapping Already Exists`})
-      // }
+
+      let isMappingExists = checkisMappingExists(dashboardcode,dealerid)
+      if(!isMappingExists){
+        return res.status(400).json({message:`Mapping Already Exists`})
+      }
 
       // Insert into SBS_DBS_DashboardDealerMapping
       try {
@@ -638,8 +638,8 @@ const requestBy = async(req,res)=>{
   }
 }
 function scheduleTask() {
-  cron.schedule('*/2 * * * *', async () => { 
-    console.log("Running scheduler every 2 minutes")
+  cron.schedule('*/10 * * * *', async () => { 
+    console.log("Running scheduler every 10 minutes")
 
     try {
       const pool = await getPool1()
@@ -653,7 +653,7 @@ function scheduleTask() {
       const tasks = result.recordset
 
       if (!tasks.length) {
-        console.log(`No requests scheduled in the last 5 minutes.`)
+        console.log(`No requests scheduled in the last 10 minutes.`)
         return
       }
 

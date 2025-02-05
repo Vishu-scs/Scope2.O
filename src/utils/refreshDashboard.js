@@ -60,8 +60,10 @@ const refreshBenchmarking = async(dealerid,reqid)=>{
 const refreshCID = async(dealerid,reqid)=>{
    try {
     const isGroupSettingDone = checkGroupSetting(dealerid) 
-    if(isGroupSettingDone === 'NO'){
-      return result.status(400).json({message:`Group Setting Not done`})
+   //  console.log(isGroupSettingDone);
+    
+    if(!isGroupSettingDone){
+      return res.status(400).json({message:`Group Setting Not done`})
     }
      const pool = await getPool1()
      let query = `use UAD_BI_CID exec UAD_Cinv_Compile @dealerid`
