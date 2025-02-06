@@ -224,10 +224,9 @@ const checkisUserValid = async(addedby)=>{
 }
 const checkGroupSetting = async(dealerid)=>{
   const pool = await getPool1()
-  const query = `  use z_scope SELECT  CASE 
-        WHEN EXISTS (SELECT 1 FROM Dealer_setting_master WHERE dealerid = @dealerid AND locationid = 0) THEN 'YES'
-        ELSE 'NO'
-    END AS CID;`
+  const query = ` use z_scope 
+                  SELECT  CASE WHEN EXISTS (SELECT 1 FROM Dealer_setting_master WHERE dealerid = @dealerid AND locationid = 0) THEN 'YES'
+                  ELSE 'NO' END AS CID;`
   const result = await pool.request().input('dealerid',sql.Int,dealerid).query(query)
   if(result.recordset[0].CID === 'YES'){
     return true;
@@ -243,9 +242,8 @@ const checkisMappingExists = async (dashboardcode,dealerid)=>{
                     .input('dealerid',sql.Int,dealerid)
                     .input('dashboardcode',sql.Int,dashboardcode)
                     .query(query)
-    const dashboardcode = result.recordset.dashboardcode
-    const dealerid = result.recordset.dealerid
-    console.log(`true`);
+    // const dashboardcode = result.recordset.dashboardcode
+    // const dealerid = result.recordset.dealerid
     if (dashboardcode == result.recordset.dashboardcode && dealerid == result.recordset.dealerid){
       return false
     }

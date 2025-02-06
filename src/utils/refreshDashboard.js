@@ -6,18 +6,19 @@ const refreshSI = async(brand,dealer,brandid,dealerid,reqid) =>{
 try {
    const pool = await getPool1() 
    let query = `use [UAD_BI] 
-                   Insert into si_dealer_list (brand,dealer,brandid,dealerid)
-                   Values (@brand,@dealer,@brandid,@dealerid)`
+                   Insert into si_dealer_list (brand,dealer,brandid,dealerid,reqid)
+                   Values (@brand,@dealer,@brandid,@dealerid,@reqid)`
    
            await pool.request()
              .input('brand',sql.VarChar,brand)
              .input('dealer',sql.VarChar,dealer)
              .input('brandid',sql.Int,brandid)
              .input('dealerid',sql.Int,dealerid)
+             .input('reqid',sql.Int,reqid)
              .query(query)
    
    console.log(`Data Refreshing SI`);
-   query = `use [UAD_BI] Update SBS_DBS_ScheduledDashboard set status = 3 where reqid = @reqid`
+   query = `use [UAD_BI] Update SBS_DBS_ScheduledDashboard set status = 1 where reqid = @reqid`
          await pool.request().input('reqid',sql.Int,reqid).query(query)
 
 } catch (error) {

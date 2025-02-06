@@ -646,7 +646,7 @@ function scheduleTask() {
 
       // Fetch tasks to be executed (status = 0 means pending)
       const query = `use [UAD_BI]
-                     SELECT reqid, dashboardcode, brand, brandid, dealer, dealerid, scheduledon
+                     SELECT TOP 5  reqid, dashboardcode, brand, brandid, dealer, dealerid, scheduledon
                      FROM SBS_DBS_ScheduledDashboard 
                      WHERE status = 0`
       const result = await pool.request().query(query)
@@ -667,14 +667,14 @@ function scheduleTask() {
             .input('reqid', sql.Int, task.reqid)
             .query(`use [UAD_BI] UPDATE SBS_DBS_ScheduledDashboard SET status = 1 WHERE reqid = @reqid`)
 
-          // Fire refresh functions asynchronously
+          // Call refresh functions asynchronously
           switch (task.dashboardcode) {
             case 7: return refreshPPNI(task.brandid, task.dealerid, task.reqid)
             case 8: return refreshTOPS(task.dealerid, task.reqid)
             case 9: return refreshSpecialList(task.reqid)
             case 12: return refreshBenchmarking(task.dealerid, task.reqid)
-            case 13:
-            case 14: return refreshSI(task.brand, task.dealer, task.brandid, task.dealerid, task.reqid)
+            case 13: return refreshSI(task.brand, task.dealer, task.brandid, task.dealerid, task.reqid)
+            // case 14: return refreshGSI(task.brand, task.dealer, task.brandid, task.dealerid, task.reqid)
             case 15: return refreshCID(task.dealerid, task.reqid)
             default:
               console.error(`Invalid dashboardCode: ${task.dashboardcode} for reqid: ${task.reqid}`)
@@ -750,7 +750,42 @@ function scheduleTask() {
 //     }
 //   })
 // }
-export {getDashboardbyDealer,uploadSchedule,getRequests,getBDM,editSchedule,scheduleTask,deleteReq,changeLog,changelogView,requestNewDashboard,newDashboardSchedule,requestBy}
+
+function siScheduler() {
+  cron.schedule('*/10 * * * *', async () => { 
+    console.log("Running scheduler for si every 10 minutes")
+
+    try {
+      const pool = await getPool1()
+      const today = new Date();
+      const year = today.getMonth() === 0 ? today.getFullYear() - 1 : today.getFullYear();
+      const month = today.getMonth() === 0 ? 11 : today.getMonth() - 1;
+      const firstDayLastMonth = new Date(year, month, 1);
+      
+      // Format date properly in YYYY-MM-DD format
+      const date = firstDayLastMonth.toLocaleDateString('en-CA'); // en-CA gives YYYY-MM-DD format
+      
+      // console.log(date); // Correctly outputs "2025-01-01"
+      // Fetch tasks to be executed (status = 0 means pending)
+      let query = `use UAD_BI_SI;
+                    exec uad_si_report_3 '${date}'`
+
+    
+
+      await pool.request().query(query)
+        query = `use UAD_BI 
+                Update SBS_DBS_ScheduledDashboard set Status = 3 where reqid in (select reqid from si_dealer_list where status = 1)`
+      await pool.request().query(query)
+      
+    }
+    catch(error){
+      console.log("Error in SI Scheduler",error.message);
+      
+        throw new error
+    }
+  })
+}
+export {getDashboardbyDealer,uploadSchedule,getRequests,getBDM,editSchedule,scheduleTask,deleteReq,changeLog,changelogView,requestNewDashboard,newDashboardSchedule,requestBy,siScheduler}
 
 
 
