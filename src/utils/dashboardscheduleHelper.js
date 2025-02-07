@@ -9,7 +9,78 @@ const dataValidator = async (dealerid) => {
     // console.log(dynamicTable);
     
     
-    const query = `use [z_scope]
+//     const query = `use [z_scope]
+//                 select 
+//                 sum(case 
+//             when dsm.NonMovingSale = 'BS' then 2
+//             when dsm.NonMovingSale in ('WS', 'CS') then 1
+//             else 0 -- Optional: Count as 0 for any other values
+//         end) as RequiredCount
+// from Dealer_Setting_master dsm
+// join locationinfo li
+//     on dsm.locationid = li.LocationID
+// where li.DealerID = @dealerid 
+//   and li.OgsStatus = 1;
+// -----------------------------------------
+// with LocationSaleType as (
+//     -- Step 1: Get all active locations and their NonMovingSale types
+//     select 
+//         li.LocationID, 
+//         dsm.NonMovingSale 
+//     from Dealer_Setting_master dsm
+//     join locationinfo li
+//         on dsm.locationid = li.LocationID
+//     where li.DealerID = @dealerid
+//       and li.OgsStatus = 1
+// ),
+// FilteredSales as (
+//     -- Main query to filter data based on conditions
+//     select 
+//         ds.locationid,
+//         ds.saletype,
+//         ds.StockDateMonth,
+//         ds.StockDateYear
+//     from ${dynamicTable} ds
+//     where ds.locationid in (
+//         select LocationID 
+//         from LocationSaleType
+//     )
+//     and (
+//         -- Conditional filtering based on SaleType
+//         (exists (
+//             select 1 
+//             from LocationSaleType lst
+//             where lst.LocationID = ds.locationid 
+//               and lst.NonMovingSale = 'WS'
+//         ) and ds.saletype = 'WS')
+//         or
+//         (exists (
+//             select 1 
+//             from LocationSaleType lst
+//             where lst.LocationID = ds.locationid 
+//               and lst.NonMovingSale = 'CS'
+//         ) and ds.saletype = 'CS')
+//         or
+//         (exists (
+//             select 1 
+//             from LocationSaleType lst
+//             where lst.LocationID = ds.locationid 
+//               and lst.NonMovingSale = 'BS'
+//         ) and ds.saletype in ('WS', 'CS'))  
+//     )
+//     and ds.StockDateMonth = format(DATEADD(month, -1, getdate()), 'MM')  
+//     and ds.StockDateYear = case 
+//         when format(getdate(), 'MM') = '01' then format(getdate(), 'yyyy') - 1
+//         else format(getdate(), 'yyyy')
+//     end
+
+// )
+// -- Counting the number of rows
+// select count(*) as GettingRowCount
+// from FilteredSales;`
+const query = `
+USE [z_scope];  -- Ensure the correct database is used
+
                 select 
                 sum(case 
             when dsm.NonMovingSale = 'BS' then 2
@@ -19,65 +90,61 @@ const dataValidator = async (dealerid) => {
 from Dealer_Setting_master dsm
 join locationinfo li
     on dsm.locationid = li.LocationID
-where li.DealerID = @dealerid 
-  and li.OgsStatus = 1;
------------------------------------------
-with LocationSaleType as (
+where li.DealerID = @dealerid
+-- Ensure the previous statement is terminated before using CTE
+;WITH LocationSaleType AS (
     -- Step 1: Get all active locations and their NonMovingSale types
-    select 
+    SELECT 
         li.LocationID, 
         dsm.NonMovingSale 
-    from Dealer_Setting_master dsm
-    join locationinfo li
-        on dsm.locationid = li.LocationID
-    where li.DealerID = @dealerid
-      and li.OgsStatus = 1
+    FROM Dealer_Setting_master dsm
+    JOIN locationinfo li
+        ON dsm.locationid = li.LocationID
+    WHERE li.DealerID = @dealerid
+    -- AND li.OgsStatus = 1
 ),
-FilteredSales as (
+FilteredSales AS (
     -- Main query to filter data based on conditions
-    select 
+    SELECT 
         ds.locationid,
         ds.saletype,
         ds.StockDateMonth,
         ds.StockDateYear
-    from ${dynamicTable} ds
-    where ds.locationid in (
-        select LocationID 
-        from LocationSaleType
-    )
-    and (
+    FROM ${dynamicTable} ds
+    WHERE ds.locationid IN (SELECT LocationID FROM LocationSaleType)
+    AND (
         -- Conditional filtering based on SaleType
-        (exists (
-            select 1 
-            from LocationSaleType lst
-            where lst.LocationID = ds.locationid 
-              and lst.NonMovingSale = 'WS'
-        ) and ds.saletype = 'WS')
-        or
-        (exists (
-            select 1 
-            from LocationSaleType lst
-            where lst.LocationID = ds.locationid 
-              and lst.NonMovingSale = 'CS'
-        ) and ds.saletype = 'CS')
-        or
-        (exists (
-            select 1 
-            from LocationSaleType lst
-            where lst.LocationID = ds.locationid 
-              and lst.NonMovingSale = 'BS'
-        ) and ds.saletype in ('WS', 'CS'))  
+        (EXISTS (
+            SELECT 1 
+            FROM LocationSaleType lst
+            WHERE lst.LocationID = ds.locationid 
+              AND lst.NonMovingSale = 'WS'
+        ) AND ds.saletype = 'WS')
+        OR
+        (EXISTS (
+            SELECT 1 
+            FROM LocationSaleType lst
+            WHERE lst.LocationID = ds.locationid 
+              AND lst.NonMovingSale = 'CS'
+        ) AND ds.saletype = 'CS')
+        OR
+        (EXISTS (
+            SELECT 1 
+            FROM LocationSaleType lst
+            WHERE lst.LocationID = ds.locationid 
+              AND lst.NonMovingSale = 'BS'
+        ) AND ds.saletype IN ('WS', 'CS'))  
     )
-    and ds.StockDateMonth = format(DATEADD(month, -1, getdate()), 'MM')  
-    and ds.StockDateYear = case 
-        when format(getdate(), 'MM') = '01' then format(getdate(), 'yyyy') - 1
-        else format(getdate(), 'yyyy')
-    end
-
+    AND ds.StockDateMonth = MONTH(DATEADD(MONTH, -1, GETDATE()))  
+    AND ds.StockDateYear = CASE 
+        WHEN MONTH(GETDATE()) = 1 THEN YEAR(GETDATE()) - 1
+        ELSE YEAR(GETDATE())
+    END
 )
 -- Counting the number of rows
-select count(*) as GettingRowCount
-from FilteredSales;`
+SELECT COUNT(*) AS GettingRowCount
+FROM FilteredSales;
+`
 
     const result = await pool.request()
   .input('dealerid', sql.Int, dealerid).query(query)
