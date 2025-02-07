@@ -89,8 +89,8 @@ try {
     const query = `use [z_scope] select dm.tCode , dm.Dashboard from DB_DashboardLocMapping dlm                  
                   join LocationInfo li on li.LocationID = dlm.LocationID
                   join DB_DashboardMaster dm on dm.tCode = dlm.DashboardCode
-                  where dealerid = @dealerid and dlm.Status = 1 and 
-                  --li.OgsStatus = 1 
+                  where dealerid = @dealerid and dlm.Status = 1  
+                  -- and li.OgsStatus = 1 
                   and li.Status = 1 and dm.Status = 1
                   group by dm.tcode , dm.Dashboard`
     const result = await pool.request().input('dealerid',sql.Int,dealerid).query(query)
