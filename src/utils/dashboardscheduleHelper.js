@@ -6,80 +6,7 @@ const dataValidator = async (dealerid) => {
 
   try {
     const dynamicTable = `dealer_sale_upload1_td001_${dealerid}`;
-    // console.log(dynamicTable);
-    
-    
-//     const query = `use [z_scope]
-//                 select 
-//                 sum(case 
-//             when dsm.NonMovingSale = 'BS' then 2
-//             when dsm.NonMovingSale in ('WS', 'CS') then 1
-//             else 0 -- Optional: Count as 0 for any other values
-//         end) as RequiredCount
-// from Dealer_Setting_master dsm
-// join locationinfo li
-//     on dsm.locationid = li.LocationID
-// where li.DealerID = @dealerid 
-//   and li.OgsStatus = 1;
-// -----------------------------------------
-// with LocationSaleType as (
-//     -- Step 1: Get all active locations and their NonMovingSale types
-//     select 
-//         li.LocationID, 
-//         dsm.NonMovingSale 
-//     from Dealer_Setting_master dsm
-//     join locationinfo li
-//         on dsm.locationid = li.LocationID
-//     where li.DealerID = @dealerid
-//       and li.OgsStatus = 1
-// ),
-// FilteredSales as (
-//     -- Main query to filter data based on conditions
-//     select 
-//         ds.locationid,
-//         ds.saletype,
-//         ds.StockDateMonth,
-//         ds.StockDateYear
-//     from ${dynamicTable} ds
-//     where ds.locationid in (
-//         select LocationID 
-//         from LocationSaleType
-//     )
-//     and (
-//         -- Conditional filtering based on SaleType
-//         (exists (
-//             select 1 
-//             from LocationSaleType lst
-//             where lst.LocationID = ds.locationid 
-//               and lst.NonMovingSale = 'WS'
-//         ) and ds.saletype = 'WS')
-//         or
-//         (exists (
-//             select 1 
-//             from LocationSaleType lst
-//             where lst.LocationID = ds.locationid 
-//               and lst.NonMovingSale = 'CS'
-//         ) and ds.saletype = 'CS')
-//         or
-//         (exists (
-//             select 1 
-//             from LocationSaleType lst
-//             where lst.LocationID = ds.locationid 
-//               and lst.NonMovingSale = 'BS'
-//         ) and ds.saletype in ('WS', 'CS'))  
-//     )
-//     and ds.StockDateMonth = format(DATEADD(month, -1, getdate()), 'MM')  
-//     and ds.StockDateYear = case 
-//         when format(getdate(), 'MM') = '01' then format(getdate(), 'yyyy') - 1
-//         else format(getdate(), 'yyyy')
-//     end
-
-// )
-// -- Counting the number of rows
-// select count(*) as GettingRowCount
-// from FilteredSales;`
-const query = `
-USE [z_scope];  -- Ensure the correct database is used
+    const query = `USE [z_scope];  -- Ensure the correct database is used
 
                 select 
                 sum(case 
@@ -90,9 +17,10 @@ USE [z_scope];  -- Ensure the correct database is used
 from Dealer_Setting_master dsm
 join locationinfo li
     on dsm.locationid = li.LocationID
-where li.DealerID = @dealerid
+where li.DealerID = 10038 and li.status = 1
 -- Ensure the previous statement is terminated before using CTE
-;WITH LocationSaleType AS (
+;
+WITH LocationSaleType AS (
     -- Step 1: Get all active locations and their NonMovingSale types
     SELECT 
         li.LocationID, 
@@ -100,7 +28,7 @@ where li.DealerID = @dealerid
     FROM Dealer_Setting_master dsm
     JOIN locationinfo li
         ON dsm.locationid = li.LocationID
-    WHERE li.DealerID = @dealerid
+    WHERE li.DealerID = 10038
     -- AND li.OgsStatus = 1
 ),
 FilteredSales AS (
@@ -110,7 +38,7 @@ FilteredSales AS (
         ds.saletype,
         ds.StockDateMonth,
         ds.StockDateYear
-    FROM ${dynamicTable} ds
+    FROM dealer_sale_upload1_td001_10038 ds
     WHERE ds.locationid IN (SELECT LocationID FROM LocationSaleType)
     AND (
         -- Conditional filtering based on SaleType
@@ -167,67 +95,6 @@ else{
   }
 };
 
-// const checkisAlreadyScheduled = async(dashboardcode,brandid,dealerid,scheduledon)=>{
-//   const pool = await getPool1()
-//   console.log(`Dash - ${dashboardcode}, brand - ${brandid}, dealer - ${dealerid} , schedule - ${scheduledon}`)
-//   const query = `use norms select status , scheduledon  from scheduledDashboard sd where dashboardcode = @dashboardcode and dealerid = @dealerid and brandid = @brandid
-//                  select * from scheduledDashboard sd where dashboardcode = @dashboardcode and dealerid = @dealerid and brandid = @brandid`
-//   const result = await pool.request()
-//                   .input('dashboardcode',sql.Int,dashboardcode)
-//                   .input('brandid',sql.Int,brandid)
-//                   .input('dealerid',sql.Int,dealerid)
-//                   .input('scheduledon',sql.DateTime,scheduledon)
-//                   .query(query)
-//                   console.log(`hi`);
-//                   // console.log(result.recordsets);
-//             const status = result.recordsets[0][0].status
-//             const lastscheduledfor = result.recordsets[0][0].scheduledon
-//             const allowedtoscheduleon = new Date (lastscheduledfor)
-//             allowedtoscheduleon.setDate(allowedtoscheduleon.getdate()+1)
-//       //       if((status == 5 || status == 6) && (lastscheduledfor > allowedtoscheduleon)){
-
-//       //       }
-//       // console.log(status);
-//       // console.log(lastscheduledfor); 
-//       if(result.recordsets[1] === 0 || (result.recordsets[1][0].status = status && result.recordsets[1][0].Scheduledon > allowedtoscheduleon ) ){
-//         return true;
-//       }
-//       return false;
-    
-// }
-// const checkisAlreadyScheduled = async (dashboardcode, brandid, dealerid) => {
-//   const pool = await getPool1();
-//   // console.log(`Dash - ${dashboardcode}, brand - ${brandid}, dealer - ${dealerid} , schedule - ${scheduledon}`);
-  
-//   const query = `
-//     use norms 
-//     select  scheduledon from scheduledDashboard  where dashboardcode = @dashboardcode and dealerid = @dealerid and brandid = @brandid;
-//     select * from scheduledDashboard sd where dashboardcode = @dashboardcode and dealerid = @dealerid and brandid = @brandid;
-//   `;
-  
-//   const result = await pool.request()
-//     .input('dashboardcode', sql.Int, dashboardcode)
-//     .input('brandid', sql.Int, brandid)
-//     .input('dealerid', sql.Int, dealerid)
-//     // .input('scheduledon', sql.DateTime, scheduledon)
-//     .query(query);
-  
-//   // const status = result.recordsets[0][0].status;
-//   const lastscheduledfor = result.recordsets[0][0].scheduledon;
-  
-//   // Create a new Date object from last scheduled date
-//   const allowedtoscheduleon = new Date(lastscheduledfor);
-  
-//   // Add 1 day to the last scheduled date
-//   allowedtoscheduleon.setDate(allowedtoscheduleon.getDate() + 1);
-
-//   // Check if the conditions are met
-//   if (result.recordsets[1].length === 0 || ((result.recordsets[1][0].Status === 5 || result.recordsets[1][0].Status === 6) && result.recordsets[1][0].ScheduledOn > allowedtoscheduleon)) {
-//     return true;
-//   }
-
-//   return false;
-// };
 const checkisAlreadyScheduled = async (dashboardcode, brandid, dealerid) => {
   const pool = await getPool1();
 
