@@ -361,15 +361,15 @@ try {
 const changelogView = async(req,res)=>{
     try {
       const pool  = await getPool1()
-      const query = `use [UAD_BI]
-                      SELECT DISTINCT dm.Dashboard,  wm.Workspace,  li.Brand,  li.Dealer,  CONCAT(adm.vcFirstName, ' ', adm.vcLastName) AS ChangedBy,   cl.ChangedOn, am.Name AS RequestedBy,   cl.RequestOn,   cl.Url  
+      const query = ` use [UAD_BI]
+                      SELECT DISTINCT dm.Dashboard,  wm.Workspace,  li.Brand,  li.Dealer,  CONCAT(adm.vcFirstName, ' ', adm.vcLastName) AS ChangedBy,   cl.ChangedOn, am.Name AS RequestedBy,   cl.RequestOn,   cl.Url , cl.remarks 
                       FROM SBS_DBS_ChangeLog cl  
                       LEFT JOIN z_scope..locationinfo li ON li.dealerid = cl.refdealerid  
                       LEFT JOIN z_scope..db_dashboardmaster dm ON dm.tcode = cl.DashboardCode  
                       LEFT JOIN SBS_DBS_AdminMaster am ON am.Aid = cl.Requestby  
                       LEFT JOIN SBS_DBS_WorkspaceMaster wm ON wm.WorkspaceID = cl.Workspaceid  
                       LEFT JOIN z_scope..AdminMaster_GEN adm ON adm.bintId_Pk = cl.Changedby  
-                      GROUP BY  dm.Dashboard,  wm.Workspace,  li.Brand,  li.Dealer,  adm.vcFirstName,  adm.vcLastName,  cl.ChangedOn,  am.Name,  cl.RequestOn,  cl.Url;`
+                      GROUP BY  dm.Dashboard,  wm.Workspace,  li.Brand,  li.Dealer,  adm.vcFirstName,  adm.vcLastName,  cl.ChangedOn,  am.Name,  cl.RequestOn,  cl.Url , cl.remarks;`
   
       const result = await pool.request().query(query)
       res.status(200).json({Data:result.recordset})
