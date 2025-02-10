@@ -121,24 +121,57 @@ const checkisAlreadyScheduled = async (dashboardcode, brandid, dealerid) => {
     console.log('Query results:', result.recordsets);
 
     // Check for the last scheduled date
-    const lastscheduledfor = result.recordsets[0]?.[0]?.scheduledon;
+    // const lastscheduledfor = result.recordsets[0]?.[0]?.scheduledon;
+    // console.log("last",lastscheduledfor);
+    
 
-    if (!lastscheduledfor) {
-      console.log('No previous schedule found.');
-      return true; // Allow scheduling if no previous schedule exists
-    }
+    // if (!lastscheduledfor) {
+    //   console.log('No previous schedule found.');
+    //   return true; // Allow scheduling if no previous schedule exists
+    // }
 
-    const allowedtoscheduleon = new Date(lastscheduledfor);
-    allowedtoscheduleon.setDate(allowedtoscheduleon.getDate() + 0);
+    // const allowedtoscheduleon = new Date(lastscheduledfor);
+    // allowedtoscheduleon.setDate(allowedtoscheduleon.getDate() + 0);
+    // console.log("allowed",allowedtoscheduleon);
+    
+    // // Check if scheduling conditions are met
+    // if (result.recordsets[1].length === 0 || 
+    //     ((result.recordsets[1][0].Status === 5 || result.recordsets[1][0].Status === 6) && 
+    //      new Date(result.recordsets[1][0].ScheduledOn) < allowedtoscheduleon)) {
+    //   return true;
+    //   console.log(`true`);
+    // }
 
-    // Check if scheduling conditions are met
-    if (result.recordsets[1].length === 0 || 
-        ((result.recordsets[1][0].Status === 5 || result.recordsets[1][0].Status === 6) && 
-         new Date(result.recordsets[1][0].ScheduledOn) > allowedtoscheduleon)) {
-      return true;
-    }
+    // return false;
+    // console.log(`false`);
+    const lastscheduledfor = result.recordsets[0]?.[0]?.ScheduledOn;
+    // console.log("Last Scheduled Date:", lastscheduledfor);
 
-    return false;
+if (!lastscheduledfor) {
+    console.log('No previous schedule found. Scheduling allowed.');
+    return true;
+}
+
+const allowedtoscheduleon = new Date(lastscheduledfor);
+console.log("Allowed to Schedule On:", allowedtoscheduleon);
+
+if (result.recordsets[1].length === 0) {
+    console.log("No existing scheduled requests. Scheduling allowed.");
+    return true;
+}
+
+const firstRecord = result.recordsets[1][0];
+const scheduledDate = new Date(firstRecord.ScheduledOn);
+
+if ((firstRecord.Status === 5 || firstRecord.Status === 6) && scheduledDate < allowedtoscheduleon) {
+    console.log("Status is 5 or 6 and scheduled date is earlier than allowed date. Scheduling allowed.");
+    return true;
+}
+
+console.log("Scheduling not allowed.");
+return false;
+
+    
   } catch (error) {
     console.error('Error in checkisAlreadyScheduled:', error.message);
     throw error;
