@@ -335,12 +335,12 @@ const fetchRequests = async () => {
 const changeLog = async(req,res)=>{
 try {
     const pool = await getPool1()
-    const {dashboardcode , workspaceid , refbrandid , refdealerid ,changeby , requestby , requeston , url} = req.body
-    if(!dashboardcode || !workspaceid || !refbrandid || !refdealerid || !changeby || !requestby || !requeston || !url){
+    const {dashboardcode , workspaceid , refbrandid , refdealerid ,changeby , requestby , requeston , url , remarks} = req.body
+    if(!dashboardcode || !workspaceid || !refbrandid || !refdealerid || !changeby || !requestby || !requeston || !url || !remarks){
       return res.status(400).json({message:`All fields are required`})
     }
-    const query = `insert into UAD_BI..SBS_DBS_ChangeLog(dashboardcode,workspaceid,refbrandid, refdealerid,changedby,changedon,requestby,requeston,url)
-                  values(@dashboardcode,@workspaceid,@refbrandid,@refdealerid,@changeby,GETDATE(),@requestby,@requeston,@url)`
+    const query = `insert into UAD_BI..SBS_DBS_ChangeLog(dashboardcode,workspaceid,refbrandid, refdealerid,changedby,changedon,requestby,requeston,url,remarks)
+                  values(@dashboardcode,@workspaceid,@refbrandid,@refdealerid,@changeby,GETDATE(),@requestby,@requeston,@url,@remarks)`
     await pool.request().input('dashboardcode',sql.TinyInt,dashboardcode)
                                       .input('workspaceid',sql.TinyInt,workspaceid)
                                       .input('refbrandid',sql.SmallInt,refbrandid)
@@ -349,6 +349,7 @@ try {
                                       .input('requestby',sql.Int,requestby)
                                       .input('requeston',sql.DateTime,requeston)
                                       .input('url',sql.NVarChar,url)
+                                      .input('remarks',sql.VarChar,remarks)
                                       .query(query)
         res.status(201).json({message:"Dashboard Changes are Successfully Tracked"})
 } catch (error) {
@@ -377,87 +378,6 @@ const changelogView = async(req,res)=>{
       }
   
   }
-// const newDashboardSchedule = async(req,res)=>{
-//   try {
-//     const pool = await getPool1()
-//     const {brandid ,brand, dealer,  dealerid , dashboardcodes , scheduledon , addedby} = req.body
-//     if(!brandid || !brand || !dealer || !dealerid || !dashboardcodes || !scheduledon || !addedby){
-//       return res.status(400).json({message:`All Fields are Required`})
-//     }
-//         // Checking User is Authorised to Perform Actions or not 
-//         const isUserValid = checkisUserValid(addedby)
-
-//         // Validate dashboardcodes as an array
-//         if (isUserValid) {
-//           let parsedDashboardCodes;
-//           try {
-//             parsedDashboardCodes = JSON.parse(JSON.stringify(dashboardcodes)); // Ensure it's a proper array
-//             if (!Array.isArray(parsedDashboardCodes) || parsedDashboardCodes.length === 0) {
-//               throw new Error("Invalid dashboardcodes format.");
-//             }
-//           } catch (err) {
-//             return res.status(400).json({ error: "Invalid or missing dashboardcodes. It must be a JSON array." });
-//           }
-      
-//           // Parse and validate the `scheduledon` field
-//           const scheduledDate = new Date(scheduledon);
-//           if (isNaN(scheduledDate.getTime())) {
-//             return res.status(400).json({ error: "Invalid date format for 'scheduledon'." });
-//           }
-      
-//           // Check if the date is at least 24 hours in the future
-//           const currentDate = new Date();
-//           const futureThreshold = new Date(currentDate.getTime() + 24 * 60 * 60 * 1000); // 24 hours from now
-//           if (scheduledDate <= futureThreshold) {
-//             return res.status(400).json({
-//               error: "Scheduled date must be at least 24 hours after the current date.",
-//             });
-//           }
-      
-//           // Validate dealer data
-//           const isDataValid = await dataValidator(dealerid);
-//           console.log(`isDataUploaded: `,isDataValid);
-      
-//           if (!isDataValid) {
-//             return res.status(400).json({message:"Data for Dealer is not Updated"});
-//           }
-//           for (const dashboardcode of parsedDashboardCodes) {
-
-//             const isAlreadyScheduled = await checkisAlreadyScheduled(dashboardcode,brandid,dealerid)
-//              console.log(`already scheduled: `,isAlreadyScheduled);
-//              if(!isAlreadyScheduled){
-//               return res.status(401).json({message:`Dashboard Already Scheduled`})
-//              }
-//     let query = `use [UAD_BI] 
-//                   INSERT INTO SBS_DBS_DashboardDealerMapping (DashboardCode, DealerID)
-//                   values(@dashboardcode , @dealerid) `
-
-//        try {
-//          await pool.request().input('dashboardcode',sql.Int,dashboardcode).input('dealerid',sql.Int,dealerid).query(query)
-//        } catch (error) {
-//         return res.status(500).json({message:`Error in mapping new dashbaord and dealerid`},{error:error.message})
-//        }
-    
-//      query = `use [UAD_BI] INSERT INTO SBS_DBS_ScheduledDashboard (Dashboardcode, Brandid, Brand, Dealerid, Dealer, Scheduledon, Addedby, Addedon)
-//                     VALUES (@dashboardcode, @brandid, @brand, @dealerid, @dealer, @scheduledon, @addedby, GETDATE());`
-                    
-//                     await pool.request()
-//                       .input("dashboardcode", sql.Int, dashboardcode) 
-//                       .input("brand", sql.VarChar, brand)
-//                       .input("brandid", sql.Int, brandid)
-//                       .input("dealer", sql.VarChar, dealer)
-//                       .input("dealerid", sql.Int, dealerid)
-//                       .input("scheduledon", sql.DateTime, scheduledon)
-//                       .input("addedby", sql.Int, addedby)
-//                       .query(query);
-
-//           res.status(201).json({message:`Request for new Dashboard Successfully Submitted`})
-//   } 
-// }
-// }catch (error) {
-//     res.status(500).json({message:error.message})
-//   }
-// }
 const newDashboardSchedule = async (req, res) => {
   try {
     const pool = await getPool1();
@@ -561,56 +481,6 @@ const newDashboardSchedule = async (req, res) => {
   }
 };
 
-// function scheduleTask() {
-//   cron.schedule('*/1 * * * *', async () => {
-//     console.log("Running scheduler in every 5 minutes")
-//     try {
-//       const pool = await getPool1()
-
-//       // Fetch tasks to be executed
-//       // status = 0 (when request is pending)
-//       const query = `use [norms]
-//                 SELECT reqid, dashboardcode, brand, brandid, dealer, dealerid, scheduledon
-//                 FROM scheduleddashboard where status = 0
-
-//           `
-//       const result = await pool.request().query(query)
-//       const tasks = result.recordset
-//       // console.log(tasks);
-      
-//       if (Array.isArray(tasks) && !tasks.length) {
-//         console.log(`No request Scheduled in 5 minutes`)
-//       }
-
-//       for (const task of tasks) {        
-//         // console.log(`Processing task for dashboardcode: ${task.dashboardcode}, dealer :${task.dealer} ,scheduledon: ${task.scheduledon}`);
-
-//         // Mark Status
-//         // status = 1 (when request is went for data refresh "SP IS RUNNING")
-//         await pool.request()
-//           .input('reqid', sql.Int, task.reqid)
-//           .query(`use [norms]
-//                       UPDATE scheduleddashboard
-//                       SET status = 1
-//                       WHERE reqid = @reqid
-//                   `)
-
-//         // Perform the refresh logic here
-//         if (task.dashboardcode == 7)  { await refreshPPNI(task.brandid, task.dealerid,task.reqid)} 
-//         if (task.dashboardcode == 8)  { await refreshTOPS(task.dealerid,task.reqid)} 
-//         if (task.dashboardcode == 9)  { await refreshSpecialList(task.reqid)} 
-//         if (task.dashboardcode == 12) { await refreshBenchmarking(task.dealerid,task.reqid)} 
-//         if (task.dashboardcode == 13 || task.dashboardcode == 14) { await refreshSI(task.brand, task.dealer, task.brandid, task.dealerid,task.reqid)} 
-//         if (task.dashboardcode == 15) { await refreshCID(task.dealerid,task.reqid)} 
-//         else{
-//           res.status(400).json({message:`DashboardCode in Invalid`})
-//         }
-//       }
-//     } catch (error) {
-//       console.error("Error processing scheduled tasks:", error.message)
-//     }
-//   })
-// }
 const requestNewDashboard = async (req,res)=>{
  try {
    const pool = await getPool1()
@@ -640,6 +510,7 @@ const requestBy = async(req,res)=>{
     res.status(500).json({message:error.message})
   }
 }
+//  '0,30 0-9 * * *'  for every 30 minutes interval between 12 midnight to 9 am 
 function scheduleTask() {
   cron.schedule('*/10 * * * *', async () => { 
     console.log("Running scheduler every 10 minutes")
@@ -696,64 +567,6 @@ function scheduleTask() {
     }
   })
 }
-
-
-//  '0,30 0-9 * * *'  for every 30 minutes interval between 12 midnight to 9 am 
-// function scheduleTask() {
-//   cron.schedule('0 0 * * *', async () => { // Runs every day at 12:00 AM
-//     console.log("Running scheduler at midnight")
-//     try {
-//       const pool = await getPool1()
-
-//       // Fetch tasks where scheduledon is today and status = 0
-//       const query = `SELECT reqid, dashboardcode, brand, brandid, dealer, dealerid, scheduledon
-//                      FROM UAD_BI.dbo.SBS_DBS_ScheduledDashboard
-//                      WHERE status = 0 AND CONVERT(DATE, scheduledon) = CONVERT(DATE, GETDATE())`
-//       const result = await pool.request().query(query)
-//       const tasks = result.recordset
-
-//       if (!tasks.length) {
-//         console.log("No scheduled requests for today.")
-//         return
-//       }
-
-//       // Process all tasks in parallel
-//       const taskPromises = tasks.map(async (task) => {
-//         console.log(`Processing task for dashboardcode: ${task.dashboardcode}, dealer: ${task.dealer}, scheduledon: ${task.scheduledon}`)
-
-//         try {
-//           // Mark status as "SP IS RUNNING In-Progress" (1)
-//           await pool.request()
-//             .input('reqid', sql.Int, task.reqid)
-//             .query(`UPDATE UAD_BI.dbo.SBS_DBS_ScheduledDashboard SET status = 1 WHERE reqid = @reqid`)
-
-//           // Fire refresh functions asynchronously
-//           switch (task.dashboardcode) {
-//             case 7: return refreshPPNI(task.brandid, task.dealerid, task.reqid)
-//             case 8: return refreshTOPS(task.dealerid, task.reqid)
-//             case 9: return refreshSpecialList(task.reqid)
-//             case 12: return refreshBenchmarking(task.dealerid, task.reqid)
-//             case 13:
-//             case 14: return refreshSI(task.brand, task.dealer, task.brandid, task.dealerid, task.reqid)
-//             case 15: return refreshCID(task.dealerid, task.reqid)
-//             default:
-//               console.error(`Invalid dashboardCode: ${task.dashboardcode} for reqid: ${task.reqid}`)
-//           }
-//         } catch (error) {
-//           console.error(`Error processing dashboardCode ${task.dashboardcode} for reqid: ${task.reqid}:`, error.message)
-//         }
-//       })
-
-//       // Wait for all tasks to push queries to the DB asynchronously
-//       await Promise.allSettled(taskPromises)
-
-//       console.log("All scheduled tasks processed asynchronously at midnight")
-//     } catch (error) {
-//       console.error("Error processing scheduled tasks:", error.message)
-//     }
-//   })
-// }
-
 function siScheduler() {
   cron.schedule('*/10 * * * *', async () => { 
     console.log("Running scheduler for si every 10 minutes")
@@ -777,7 +590,7 @@ function siScheduler() {
 
       await pool.request().query(query)
         query = `use UAD_BI 
-                Update SBS_DBS_ScheduledDashboard set Status = 3 where reqid in (select reqid from si_dealer_list where status = 1)`
+                Update SBS_DBS_ScheduledDashboard set Status = 3 where reqid in (select reqid from si_dealer_list where status = 1) and status = 1`
       await pool.request().query(query)
       
     }

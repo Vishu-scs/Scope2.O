@@ -6,8 +6,7 @@ const dataValidator = async (dealerid) => {
 
   try {
     const dynamicTable = `dealer_sale_upload1_td001_${dealerid}`;
-    const query = `USE [z_scope];  -- Ensure the correct database is used
-
+    const query = `USE [z_scope]; 
                 select 
                 sum(case 
             when dsm.NonMovingSale = 'BS' then 2
