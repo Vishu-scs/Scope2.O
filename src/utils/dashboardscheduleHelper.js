@@ -145,12 +145,14 @@ const checkisAlreadyScheduled = async (dashboardcode, brandid, dealerid) => {
     // return false;
     // console.log(`false`);
     const lastscheduledfor = result.recordsets[0]?.[0]?.ScheduledOn;
-    // console.log("Last Scheduled Date:", lastscheduledfor);
+    console.log(result.recordsets[0]);
+    console.log(result.recordsets[1]);
 
-if (!lastscheduledfor) {
-    console.log('No previous schedule found. Scheduling allowed.');
-    return true;
-}
+
+// if (!lastscheduledfor) {
+//     console.log('No previous schedule found. Scheduling allowed.');
+//     return true;
+// }
 
 const allowedtoscheduleon = new Date(lastscheduledfor);
 console.log("Allowed to Schedule On:", allowedtoscheduleon);
@@ -162,9 +164,11 @@ if (result.recordsets[1].length === 0) {
 
 const firstRecord = result.recordsets[1][0];
 const scheduledDate = new Date(firstRecord.ScheduledOn);
+console.log(firstRecord);
+
 
 if ((firstRecord.Status === 5 || firstRecord.Status === 6) && scheduledDate < allowedtoscheduleon) {
-    // console.log("Status is 5 or 6 and scheduled date is earlier than allowed date. Scheduling allowed.");
+    console.log("Status is 5 or 6 and scheduled date is earlier than allowed date. Scheduling allowed.");
     return true;
 }
 
@@ -190,14 +194,21 @@ const checkisUserValid = async(addedby)=>{
 }
 const checkGroupSetting = async(dealerid)=>{
   const pool = await getPool1()
-  const query = ` use z_scope 
+  let query = `select count(dealerid) from locationinfo where dealerid =  @dealerid `
+  let result = await pool.request().input('dealerid',sql.Int,dealerid).query(query)
+  if(result.recordset.count = 1 ){
+    return true
+  }
+  else{
+    query = ` use z_scope 
                   SELECT  CASE WHEN EXISTS (SELECT 1 FROM Dealer_setting_master WHERE dealerid = @dealerid AND locationid = 0) THEN 'YES'
                   ELSE 'NO' END AS CID;`
-  const result = await pool.request().input('dealerid',sql.Int,dealerid).query(query)
+   result = await pool.request().input('dealerid',sql.Int,dealerid).query(query)
   if(result.recordset[0].CID === 'YES'){
     return true;
   }
   return false;
+  }   
 }
 const checkisMappingExists = async (dashboardcode,dealerid)=>{
   console.log(dashboardcode,dealerid);
