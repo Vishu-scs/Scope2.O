@@ -122,7 +122,7 @@ const uploadSchedule = async (req, res) => {
         res.status(400).send(`Userid is Required`)
       }
         // Checking User is Authorised to Perform Actions or not 
-          const isUserValid = checkisUserValid(addedby)
+          const isUserValid = await checkisUserValid(addedby)
 
       // Validate dashboardcodes as an array
       if (isUserValid) {
