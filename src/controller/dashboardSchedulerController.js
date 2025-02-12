@@ -2,7 +2,7 @@ import sql from 'mssql'
 import cron from 'node-cron'
 import {getPool1} from '../db/db.js'
 import {dataValidator,checkisAlreadyScheduled,checkisUserValid, checkisMappingExists} from '../utils/dashboardscheduleHelper.js'
-import {refreshBenchmarking, refreshPPNI, refreshSI, refreshTOPS, refreshCID, refreshSpecialList} from '../utils/refreshDashboard.js'
+import {refreshBenchmarking, refreshPPNI, refreshSI, refreshTOPS, refreshCID, refreshSpecialList, refreshGainerMini} from '../utils/refreshDashboard.js'
 
 // const getBrandsforDashboard = async (req, res) => {
 //   const pool = await getPool1();
@@ -167,7 +167,12 @@ const uploadSchedule = async (req, res) => {
          if(!isAlreadyScheduled){
           return res.status(401).json({message:`Dashboard Already Scheduled`})
          }
-         
+         const isGroupSettingDone = checkGroupSetting(dealerid) 
+          //  console.log(isGroupSettingDone);
+    
+          if(!isGroupSettingDone){
+          return res.status(400).json({message:`Group Setting Not done`})
+    }
         const query = ` use [UAD_BI]
             INSERT INTO SBS_DBS_ScheduledDashboard (Dashboardcode, Brandid, Brand, Dealerid, Dealer, Scheduledon, Addedby, Addedon)
             VALUES (@dashboardcode, @brandid, @brand, @dealerid, @dealer, @scheduledon, @addedby, GETDATE());`;
@@ -395,7 +400,8 @@ const newDashboardSchedule = async (req, res) => {
     }
 
     // Validate `dashboardcodes` as an array
-    if (!Array.isArray(dashboardcodes) || dashboardcodes.length === 0) {
+    if (!Array.isArray(dashboardcodes) ||
+     dashboardcodes.length === 0) {
       return res.status(400).json({ error: "Invalid or missing dashboardcodes. It must be a non-empty array." });
     }
 
@@ -426,7 +432,7 @@ const newDashboardSchedule = async (req, res) => {
       const isAlreadyScheduled = await checkisAlreadyScheduled(dashboardcode, brandid, dealerid);
       console.log(`Already scheduled:`, isAlreadyScheduled);
 
-      if (isAlreadyScheduled) {
+      if (!isAlreadyScheduled) {
         return res.status(400).json({ message: `Dashboard ${dashboardcode} is already scheduled.` });
       }
       //Checking Mapping Exists or not
@@ -450,7 +456,22 @@ const newDashboardSchedule = async (req, res) => {
         console.error("Error in mapping dashboard and dealer:", error);
         return res.status(500).json({ message: "Error in mapping new dashboard and dealer", error: error.message });
       }
-     
+      // Insert into SBS_DBS_newrequesttracker
+      try {
+        await pool
+          .request()
+          .input("brandid", sql.Int, brandid)
+          .input("dashboardcode", sql.Int, dashboardcode)
+          .input("dealerid", sql.Int, dealerid)
+          .input("addedby", sql.Int, addedby)
+          .query(
+            `INSERT INTO SBS_DBS_newrequesttracker (brandid,dealerid,dashboardcode,addedby,addedon)
+             VALUES (@brandid,@dealerid,@dashboardcode,@addedby,GETDATE());`
+          );
+      } catch (error) {
+        console.error("Error in mapping dashboard and dealer:", error);
+        return res.status(500).json({ message: "Error in mapping new dashboard and dealer", error: error.message });
+      }
       // Insert into SBS_DBS_ScheduledDashboard
       try {
         await pool
@@ -480,7 +501,6 @@ const newDashboardSchedule = async (req, res) => {
     return res.status(500).json({ message: "Internal Server Error", error: error.message });
   }
 };
-
 const requestNewDashboard = async (req,res)=>{
  try {
    const pool = await getPool1()
@@ -509,6 +529,20 @@ const requestBy = async(req,res)=>{
    catch (error) {
     res.status(500).json({message:error.message})
   }
+}
+const newDashboardView = async(req,res)=>{
+try {
+    const pool = await getPool1()
+    const query = `use [UAD_BI] select distinct  nrt.id,  li.brand , li.dealer , dm.dashboard ,concat(amg.vcFirstName,' ',amg.vcLastName) as Addedby,nrt.addedon  from UAD_BI..SBS_DBS_newrequesttracker nrt
+                    join locationinfo li on li.DealerID = nrt.dealerid and li.BrandID = nrt.brandid
+                    join z_scope..DB_DashboardMaster dm on dm.tcode = nrt.dashboardcode 
+                    join z_scope..AdminMaster_GEN amg on amg.bintId_Pk =  nrt.addedby
+                    group by nrt.id,  li.brand , li.dealer , dm.dashboard , nrt.addedon ,concat(amg.vcFirstName,' ',amg.vcLastName)`
+    const result = await pool.request().query(query)
+    res.status(200).json({Data:result.recordset})
+} catch (error) {
+  res.status(500).json({error:error.message})
+}
 }
 //  '0,30 0-9 * * *'  for every 30 minutes interval between 12 midnight to 9 am 
 function scheduleTask() {
@@ -550,6 +584,7 @@ function scheduleTask() {
             case 13: return refreshSI(task.brand, task.dealer, task.brandid, task.dealerid, task.reqid)
             // case 14: return refreshGSI(task.brand, task.dealer, task.brandid, task.dealerid, task.reqid)
             case 15: return refreshCID(task.dealerid, task.reqid)
+            case 17: return refreshGainerMini(task.reqid)
             default:
               console.error(`Invalid dashboardCode: ${task.dashboardcode} for reqid: ${task.reqid}`)
           }
@@ -586,8 +621,6 @@ function siScheduler() {
       let query = `use UAD_BI_SI;
                     exec uad_si_report_3 '${date}'`
 
-    
-
       await pool.request().query(query)
         query = `use UAD_BI 
                 Update SBS_DBS_ScheduledDashboard set Status = 3 where reqid in (select reqid from si_dealer_list where status = 1) and status = 1`
@@ -601,7 +634,7 @@ function siScheduler() {
     }
   })
 }
-export {getDashboardbyDealer,uploadSchedule,getRequests,getBDM,editSchedule,scheduleTask,deleteReq,changeLog,changelogView,requestNewDashboard,newDashboardSchedule,requestBy,siScheduler}
+export {getDashboardbyDealer,uploadSchedule,getRequests,getBDM,editSchedule,scheduleTask,deleteReq,changeLog,changelogView,requestNewDashboard,newDashboardSchedule,requestBy,siScheduler,newDashboardView}
 
 
 

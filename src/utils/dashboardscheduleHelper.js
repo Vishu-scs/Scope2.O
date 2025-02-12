@@ -164,7 +164,7 @@ const firstRecord = result.recordsets[1][0];
 const scheduledDate = new Date(firstRecord.ScheduledOn);
 
 if ((firstRecord.Status === 5 || firstRecord.Status === 6) && scheduledDate < allowedtoscheduleon) {
-    console.log("Status is 5 or 6 and scheduled date is earlier than allowed date. Scheduling allowed.");
+    // console.log("Status is 5 or 6 and scheduled date is earlier than allowed date. Scheduling allowed.");
     return true;
 }
 

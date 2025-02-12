@@ -56,5 +56,137 @@ const getDashboard = async(req,res)=>{
         console.log(error);
     }
 }
+// const getMAX = async(req,res)=>{
+//     try {
+//         const pool = getPool1();
+//         // const {dealerid} = req.body;
+//         const page = parseInt(req.query.page) || 1;
+//         const pageSize = parseInt(req.query.pageSize) || 10;
+//         const offset = (page - 1) * pageSize;
+    
+//         const totalRecordsQuery = await sql.query(`SELECT COUNT(*) AS count FROM ( SELECT COUNT(*) AS count 
+// FROM (
+//     SELECT DISTINCT 
+//         sn.Brandid, 
+//         sn.Dealerid, 
+//         sn.locationid, 
+//         sn.partnumber, 
+//         pm.partdesc, 
+//         pm.category, 
+//         pm.mrp, 
+//         pm.moq, 
+//         sn.Maxvalue
+//     FROM stockable_nonstockable_td001_20208 sn
+//     JOIN Part_Master pm ON pm.partnumber = sn.partnumber
+//     WHERE stockdate = '2025-02-01 00:00:00'  
+//       AND sn.locationid = 40744
+//     GROUP BY sn.Brandid, sn.Dealerid, sn.locationid, sn.partnumber, 
+//              pm.partdesc, pm.category, pm.mrp, pm.moq, sn.Maxvalue
+// ) AS SubQuery;  -- Added alias 'SubQuery`);
+//         const totalRecords = totalRecordsQuery.recordset[0].count;
+//         const totalPages = Math.ceil(totalRecords / pageSize);
+    
+//         const dataQuery = await sql.query(`
+//              select distinct sn.Brandid , sn.Dealerid, sn.locationid , sn.partnumber , pm.partdesc , pm.category , pm.mrp , pm.moq , sn.Maxvalue
+//  from stockable_nonstockable_td001_20208 sn
+// join Part_Master pm on pm.partnumber = sn.Partnumber
+// where stockdate = '2025-02-01 00:00:00'  and sn.locationid = 40744
+//  group by sn.Brandid , sn.Dealerid, sn.locationid , sn.partnumber , pm.partdesc , pm.category , pm.mrp , pm.moq , sn.Maxvalue
+//             OFFSET ${offset} ROWS
+//             FETCH NEXT ${pageSize} ROWS ONLY;
+//         `);
+    
+//         res.json({
+//             currentPage: page,
+//             pageSize,
+//             totalRecords,
+//             totalPages,
+//             hasMore: page < totalPages, // True if more pages exist
+//             data: dataQuery.recordset
+//         });
+        
+//     } catch (error) {
+//         res.status(500).json(error)
+//         console.log(error);
+//     }
+// }
 
-export {getBrands,getDealers,getLocation,getWorkspace,getDashboard}
+const getMAX = async (req, res) => {
+    try {
+        const pool = await getPool1(); // Ensure the connection is awaited
+
+        const page = parseInt(req.query.page) || 1;
+        const pageSize = parseInt(req.query.pageSize) || 10;
+        const offset = (page - 1) * pageSize;
+
+        // 🟢 Fix totalRecordsQuery syntax and alias
+        const totalRecordsQuery = await pool.request().query(`
+            SELECT COUNT(*) AS count FROM (
+                SELECT DISTINCT 
+                    sn.Brandid, 
+                    sn.Dealerid, 
+                    sn.locationid, 
+                    sn.partnumber, 
+                    pm.partdesc, 
+                    pm.category, 
+                    pm.mrp, 
+                    pm.moq, 
+                    sn.Maxvalue
+                FROM stockable_nonstockable_td001_20208 sn
+                JOIN Part_Master pm ON pm.partnumber = sn.partnumber
+                WHERE stockdate = '2025-02-01 00:00:00'  
+                  AND sn.locationid = 40744
+            ) AS SubQuery;
+        `);
+        const totalRecords = totalRecordsQuery.recordset[0].count;
+        const totalPages = Math.ceil(totalRecords / pageSize);
+
+        // 🟢 Fix pagination query (ORDER BY before OFFSET)
+        const dataQuery = await pool.request().query(`
+            SELECT DISTINCT 
+                sn.Brandid, 
+                sn.Dealerid, 
+                sn.locationid, 
+                sn.partnumber, 
+                pm.partdesc, 
+                pm.category, 
+                pm.mrp, 
+                pm.moq, 
+                sn.Maxvalue
+            FROM stockable_nonstockable_td001_20208 sn
+            JOIN Part_Master pm ON pm.partnumber = sn.partnumber
+            WHERE stockdate = '2025-02-01 00:00:00'  
+              AND sn.locationid = 40744
+            ORDER BY sn.partnumber -- Ensure ordering before pagination
+            OFFSET ${offset} ROWS
+            FETCH NEXT ${pageSize} ROWS ONLY;
+        `);
+
+        res.json({
+            currentPage: page,
+            pageSize,
+            totalRecords,
+            totalPages,
+            hasMore: page < totalPages,
+            data: dataQuery.recordset
+        });
+
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: "Internal Server Error", details: error.message });
+    }
+};
+
+
+export {getBrands,getDealers,getLocation,getWorkspace,getDashboard,getMAX}
+
+
+// const query = `
+// select distinct sn.Brandid , sn.Dealerid, sn.locationid , sn.partnumber , pm.partdesc , pm.category , pm.mrp , pm.moq , sn.Maxvalue
+// from stockable_nonstockable_td001_20208 sn
+// join Part_Master pm on pm.partnumber = sn.Partnumber
+// where stockdate = '2025-02-01 00:00:00'  and sn.locationid = 40744
+// group by sn.Brandid , sn.Dealerid, sn.locationid , sn.partnumber , pm.partdesc , pm.category , pm.mrp , pm.moq , sn.Maxvalue
+// `
+//         const result = await pool.request().query(query)
+//         res.status(200).json(result.recordset)

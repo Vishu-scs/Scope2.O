@@ -60,13 +60,13 @@ const refreshBenchmarking = async(dealerid,reqid)=>{
 }
 const refreshCID = async(dealerid,reqid)=>{
    try {
+      const pool = await getPool1()
     const isGroupSettingDone = checkGroupSetting(dealerid) 
    //  console.log(isGroupSettingDone);
     
     if(!isGroupSettingDone){
       return res.status(400).json({message:`Group Setting Not done`})
     }
-     const pool = await getPool1()
      let query = `use UAD_BI_CID exec UAD_Cinv_Compile @dealerid`
    //   const test = `use uad_bi select * from BackupTbl`
      const result =  await pool.request().input('dealerid',sql.Int,dealerid).query(query)
@@ -134,6 +134,18 @@ const refreshSpecialList = async(reqid)=>{
    console.error("Error refreshing spl:", error.message);
    }
 }
+const refreshGainerMini = async(reqid)=>{
+   try {
+      const pool = await getPool1()
+      console.log(`Data Refreshing Gainer Mini`);
+      //Data is Always Refreshed in Special List 
+      let query = `use [UAD_BI] Update SBS_DBS_ScheduledDashboard set status = 3 where reqid = @reqid`
+       await pool.request().input('reqid',sql.Int,reqid).query(query)
+   } catch (error) {
+   //  res.status(500).send(error.message)
+   console.error("Error refreshing GainerMini:", error.message);
+   }
+}
 const refreshTOPS = async(dealerid,reqid)=>{
    try {
      const pool = await getPool1()
@@ -165,6 +177,7 @@ const refreshTOPS = async(dealerid,reqid)=>{
       }
     }
 }
+
 function isDataRefreshed(result) {
    if(result){
       return  true;
@@ -173,4 +186,4 @@ function isDataRefreshed(result) {
       return false;
    }
 } 
-export  {refreshSI,refreshBenchmarking,refreshCID,refreshPPNI,refreshTOPS,refreshSpecialList}
+export  {refreshSI,refreshBenchmarking,refreshCID,refreshPPNI,refreshTOPS,refreshSpecialList,refreshGainerMini}
