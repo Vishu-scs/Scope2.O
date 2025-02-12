@@ -1,7 +1,7 @@
 import sql from 'mssql'
 import cron from 'node-cron'
 import {getPool1} from '../db/db.js'
-import {dataValidator,checkisAlreadyScheduled,checkisUserValid, checkisMappingExists} from '../utils/dashboardscheduleHelper.js'
+import {dataValidator,checkisAlreadyScheduled,checkisUserValid, checkisMappingExists,checkGroupSetting} from '../utils/dashboardscheduleHelper.js'
 import {refreshBenchmarking, refreshPPNI, refreshSI, refreshTOPS, refreshCID, refreshSpecialList, refreshGainerMini} from '../utils/refreshDashboard.js'
 
 // const getBrandsforDashboard = async (req, res) => {
@@ -167,8 +167,8 @@ const uploadSchedule = async (req, res) => {
          if(!isAlreadyScheduled){
           return res.status(401).json({message:`Dashboard Already Scheduled`})
          }
-         const isGroupSettingDone = checkGroupSetting(dealerid) 
-          //  console.log(isGroupSettingDone);
+         const isGroupSettingDone = await checkGroupSetting(dealerid) 
+           console.log(isGroupSettingDone);
     
           if(!isGroupSettingDone){
           return res.status(400).json({message:`Group Setting Not done`})
