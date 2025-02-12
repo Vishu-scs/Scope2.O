@@ -167,11 +167,13 @@ const uploadSchedule = async (req, res) => {
          if(!isAlreadyScheduled){
           return res.status(401).json({message:`Dashboard Already Scheduled`})
          }
-         const isGroupSettingDone = await checkGroupSetting(dealerid) 
-           console.log(isGroupSettingDone);
-    
-          if(!isGroupSettingDone){
-          return res.status(400).json({message:`Group Setting Not done`})
+         if (dashboardcode == 15) {
+          const isGroupSettingDone = await checkGroupSetting(dealerid) 
+            console.log(isGroupSettingDone);
+     
+           if(!isGroupSettingDone){
+           return res.status(400).json({message:`Group Setting Not done`})
+         }
     }
         const query = ` use [UAD_BI]
             INSERT INTO SBS_DBS_ScheduledDashboard (Dashboardcode, Brandid, Brand, Dealerid, Dealer, Scheduledon, Addedby, Addedon)
