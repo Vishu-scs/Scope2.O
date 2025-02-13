@@ -548,7 +548,7 @@ try {
 }
 //  '0,30 0-9 * * *'  for every 30 minutes interval between 12 midnight to 9 am 
 function scheduleTask() {
-  cron.schedule('*/10 * * * *', async () => { 
+  cron.schedule('*/15 * * * *', async () => { 
     console.log("Running scheduler every 10 minutes")
 
     try {
@@ -558,7 +558,7 @@ function scheduleTask() {
       const query = `use [UAD_BI]
                      SELECT TOP 5  reqid, dashboardcode, brand, brandid, dealer, dealerid, scheduledon
                      FROM SBS_DBS_ScheduledDashboard 
-                     WHERE status = 0`
+                     WHERE status = 0 and dateadd(hour,-6,ScheduledOn) < = GETDATE()`
       const result = await pool.request().query(query)
       const tasks = result.recordset
 
@@ -605,7 +605,7 @@ function scheduleTask() {
   })
 }
 function siScheduler() {
-  cron.schedule('*/10 * * * *', async () => { 
+  cron.schedule('*/20 * * * *', async () => { 
     console.log("Running scheduler for si every 10 minutes")
 
     try {
