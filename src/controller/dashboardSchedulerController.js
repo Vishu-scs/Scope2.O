@@ -548,7 +548,7 @@ try {
 }
 //  '0,30 0-9 * * *'  for every 30 minutes interval between 12 midnight to 9 am 
 function scheduleTask() {
-  cron.schedule('*/15 * * * *', async () => { 
+  cron.schedule('*/30 * * * *', async () => { 
     console.log("Running scheduler every 10 minutes")
 
     try {
@@ -605,7 +605,7 @@ function scheduleTask() {
   })
 }
 function siScheduler() {
-  cron.schedule('*/20 * * * *', async () => { 
+  cron.schedule('*/30 * * * *', async () => { 
     console.log("Running scheduler for si every 10 minutes")
 
     try {

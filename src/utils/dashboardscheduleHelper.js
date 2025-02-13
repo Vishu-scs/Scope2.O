@@ -16,7 +16,7 @@ const dataValidator = async (dealerid) => {
 from Dealer_Setting_master dsm
 join locationinfo li
     on dsm.locationid = li.LocationID
-where li.DealerID = 10038 and li.status = 1
+where li.DealerID = @dealerid and li.status = 1
 -- Ensure the previous statement is terminated before using CTE
 ;
 WITH LocationSaleType AS (
@@ -27,7 +27,7 @@ WITH LocationSaleType AS (
     FROM Dealer_Setting_master dsm
     JOIN locationinfo li
         ON dsm.locationid = li.LocationID
-    WHERE li.DealerID = 10038
+    WHERE li.DealerID = @dealerid
     -- AND li.OgsStatus = 1
 ),
 FilteredSales AS (
@@ -37,7 +37,7 @@ FilteredSales AS (
         ds.saletype,
         ds.StockDateMonth,
         ds.StockDateYear
-    FROM dealer_sale_upload1_td001_10038 ds
+    FROM ${dynamicTable} ds
     WHERE ds.locationid IN (SELECT LocationID FROM LocationSaleType)
     AND (
         -- Conditional filtering based on SaleType
@@ -79,6 +79,7 @@ FROM FilteredSales;
   
 const RequiredCount = result.recordsets[0][0].RequiredCount
 const GettingRowCount = result.recordsets[1][0].GettingRowCount
+// console.log(result.recordsets);
 
 if(RequiredCount == GettingRowCount){
     return true;
@@ -86,7 +87,6 @@ if(RequiredCount == GettingRowCount){
 else{
     return false;
 }
-// console.log(RequiredCount,GettingRowCount);
 
   } catch (error) {
     console.error("Error from dataValidator: ", error);
@@ -167,13 +167,15 @@ const scheduledDate = new Date(firstRecord.ScheduledOn);
 console.log(firstRecord);
 
 
-if ((firstRecord.Status === 5 || firstRecord.Status === 6) && scheduledDate < allowedtoscheduleon) {
+if ((firstRecord.Status === 5 || firstRecord.Status === 6) ) {
     console.log("Status is 5 or 6 and scheduled date is earlier than allowed date. Scheduling allowed.");
     return true;
 }
-
-console.log("Scheduling not allowed.");
+if(firstRecord.Status === 0){
+  console.log("Scheduling not allowed.");
 return false;
+}
+
 
     
   } catch (error) {
