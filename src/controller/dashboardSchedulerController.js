@@ -203,10 +203,10 @@ const uploadSchedule = async (req, res) => {
 const getBDM = async(req,res)=>{
   const pool = await getPool1()
 try {
-    const {bigint_pk} = req.body
-    const query = `use [z_scope] select bintId_Pk, vcFirstName , vcLastName from AdminMaster_GEN where isBDM = 'y' and bintId_Pk = @bigint_pk`
-  
-    const result = await pool.request().input('bigint_pk',sql.Int,bigint_pk).query(query)
+    // const {bigint_pk} = req.body
+    // const query = `use [z_scope] select bintId_Pk, vcFirstName , vcLastName from AdminMaster_GEN where isBDM = 'y' and bintId_Pk = @bigint_pk`
+      const query= `use [z_scope] select bintId_Pk, concat(vcFirstName ,' ', vcLastName) Name from AdminMaster_GEN where isBDM = 'y' or Designation = 5 order by bintId_Pk`
+    const result = await pool.request().query(query)
     res.status(200).json(result.recordset)
 } catch (error) {
   res.status(500).send(error.message)

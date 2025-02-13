@@ -119,7 +119,6 @@ const getMAX = async (req, res) => {
         const pageSize = parseInt(req.query.pageSize) || 10;
         const offset = (page - 1) * pageSize;
 
-        // 🟢 Fix totalRecordsQuery syntax and alias
         const totalRecordsQuery = await pool.request().query(`
             SELECT COUNT(*) AS count FROM (
                 SELECT DISTINCT 

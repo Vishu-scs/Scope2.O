@@ -118,7 +118,7 @@ const checkisAlreadyScheduled = async (dashboardcode, brandid, dealerid) => {
       .input('dealerid', sql.Int, dealerid)
       .query(query);
 
-    console.log('Query results:', result.recordsets);
+    // console.log('Query results:', result.recordsets);
 
     // Check for the last scheduled date
     // const lastscheduledfor = result.recordsets[0]?.[0]?.scheduledon;
@@ -145,8 +145,8 @@ const checkisAlreadyScheduled = async (dashboardcode, brandid, dealerid) => {
     // return false;
     // console.log(`false`);
     const lastscheduledfor = result.recordsets[0]?.[0]?.ScheduledOn;
-    console.log(result.recordsets[0]);
-    console.log(result.recordsets[1]);
+    // console.log(result.recordsets[0]);
+    // console.log(result.recordsets[1]);
 
 
 // if (!lastscheduledfor) {
@@ -164,7 +164,7 @@ if (result.recordsets[1].length === 0) {
 
 const firstRecord = result.recordsets[1][0];
 const scheduledDate = new Date(firstRecord.ScheduledOn);
-console.log(firstRecord);
+// console.log(firstRecord);
 
 
 if ((firstRecord.Status === 5 || firstRecord.Status === 6) ) {
