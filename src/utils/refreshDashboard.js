@@ -49,7 +49,7 @@ const refreshBenchmarking = async(dealerid,reqid)=>{
         let query = `use [UAD_BI] Update SBS_DBS_ScheduledDashboard set status = 2 where reqid = @reqid`;
         await pool.request().input('reqid', sql.Int, reqid).query(query);
 
-        query = `use [UAD_BI] Insert into SBS_DBS_ErrorLog (reqid,Reason) values(@reqid,@error)`
+        query = `use [UAD_BI] Insert into SBS_DBS_ErrorLog (reqid,Reason,addedon) values(@reqid,@error,GETDATE())`
       await pool.request().input('reqid', sql.Int, reqid).input('error', sql.VarChar, error.message).query(query);
       } catch (updateError) {
         console.error("Error updating SBS_DBS_ScheduledDashboard:", updateError.message);
@@ -85,7 +85,7 @@ const refreshCID = async(dealerid,reqid)=>{
       const query = `use [UAD_BI] Update SBS_DBS_ScheduledDashboard set status = 2 where reqid = @reqid`;
       await pool.request().input('reqid', sql.Int, reqid).query(query);
 
-      query = `use [UAD_BI] Insert into SBS_DBS_ErrorLog (reqid,Reason) values(@reqid,@error)`
+      query = `use [UAD_BI] Insert into SBS_DBS_ErrorLog (reqid,Reason,addedon) values(@reqid,@error,GETDATE())`
       await pool.request().input('reqid', sql.Int, reqid).input('error', sql.VarChar, error.message).query(query);
     } catch (updateError) {
 
@@ -113,7 +113,7 @@ const refreshPPNI = async(brandid,dealerid,reqid)=>{
       let query = `use [UAD_BI] Update SBS_DBS_ScheduledDashboard set status = 2 where reqid = @reqid`;
       await pool.request().input('reqid', sql.Int, reqid).query(query);
 
-      query = `use [UAD_BI] Insert into SBS_DBS_ErrorLog (reqid,Reason) values(@reqid,@error)`
+      query = `use [UAD_BI] Insert into SBS_DBS_ErrorLog (reqid,Reason,addedon) values(@reqid,@error,GETDATE())`
       await pool.request().input('reqid', sql.Int, reqid).input('error', sql.VarChar, error.message).query(query);
 
     } catch (updateError) {
@@ -166,7 +166,7 @@ const refreshTOPS = async(dealerid,reqid)=>{
         const query = `use [UAD_BI] Update SBS_DBS_ScheduledDashboard set status = 2 where reqid = @reqid`;
         await pool.request().input('reqid', sql.Int, reqid).query(query);
 
-        query = `use [UAD_BI] Insert into SBS_DBS_ErrorLog (reqid,Reason) values(@reqid,@error)`
+        query = `use [UAD_BI] Insert into SBS_DBS_ErrorLog (reqid,Reason,addedon) values(@reqid,@error,GETDATE())`
       await pool.request().input('reqid', sql.Int, reqid).input('error', sql.VarChar, error.message).query(query);
       } catch (updateError) {
         console.error("Error updating SBS_DBS_ScheduledDashboard:", updateError.message);
