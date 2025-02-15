@@ -86,13 +86,16 @@ const getDashboardbyDealer = async(req,res)=>{
   const pool = await getPool1();
   const {dealerid} = req.body
 try {  
-    const query = `use [z_scope] select dm.tCode , dm.Dashboard from DB_DashboardLocMapping dlm                  
-                  join LocationInfo li on li.LocationID = dlm.LocationID
-                  join DB_DashboardMaster dm on dm.tCode = dlm.DashboardCode
-                  where dealerid = @dealerid and dlm.Status = 1  
-                  -- and li.OgsStatus = 1 
-                  and li.Status = 1 and dm.Status = 1
-                  group by dm.tcode , dm.Dashboard`
+    // const query = `use [z_scope] select dm.tCode , dm.Dashboard from DB_DashboardLocMapping dlm                  
+    //               join LocationInfo li on li.LocationID = dlm.LocationID
+    //               join DB_DashboardMaster dm on dm.tCode = dlm.DashboardCode
+    //               where dealerid = @dealerid and dlm.Status = 1  
+    //               -- and li.OgsStatus = 1 
+    //               and li.Status = 1 and dm.Status = 1
+    //               group by dm.tcode , dm.Dashboard`
+    const query = `select dm.tcode , dm.Dashboard  from DB_DashboardURL du
+                    join z_scope..DB_DashboardMaster dm on dm.tcode = du.DashboardCode
+                    where du.status = 1 and dm.Status = 1 and  dealerid  = @dealerid`
     const result = await pool.request().input('dealerid',sql.Int,dealerid).query(query)
     if(Array.isArray(result.recordset) && result.recordset.length === 0){
         return res.status(400).json({message:`No Dashboard Exist for Dealerid. You can request a New Dashboard`})
