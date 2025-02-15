@@ -604,6 +604,38 @@ function scheduleTask() {
     }
   })
 }
+const countView =  async(req,res)=>{
+  try {
+    const pool = await getPool1()
+    const query =`SELECT 
+      COUNT(reqid) AS Total,
+      SUM(CASE WHEN status = 1 THEN 1 ELSE 0 END) AS InProgress,
+      SUM(CASE WHEN status IN (2, 4) THEN 1 ELSE 0 END) AS Failed,
+      SUM(CASE WHEN status = 3 THEN 1 ELSE 0 END) AS DataRefreshed,
+      SUM(CASE WHEN status = 5 THEN 1 ELSE 0 END) AS DashboardRefreshed
+      FROM UAD_BI..SBS_DBS_scheduledDashboard;`
+  
+      const result = await pool.request().query(query)
+      res.status(200).json({data:result.recordset})
+  } catch (error) {
+    res.status(500).json({Error:error.message})
+  }
+}
+const statusTimelime = async(req,res)=>{
+  try {
+    const pool = await getPool1()
+    const {reqid} = req.body
+    if(!reqid){
+      return res.status(400).send(`Reqid is Required`)
+    }
+    const query = `use [UAD_BI] select newstatus , changedat from statuschangelog where reqid = @reqid`
+    const result = await pool.request().input('reqid',sql.Int,reqid).query(query)
+    res.status(200).json({data:result.recordset})
+  } catch (error) {
+    res.status(500).json({Error:error.message})
+  }
+}
+
 function siScheduler() {
   cron.schedule('*/30 * * * *', async () => { 
     console.log("Running scheduler for si every 10 minutes")
@@ -636,7 +668,7 @@ function siScheduler() {
     }
   })
 }
-export {getDashboardbyDealer,uploadSchedule,getRequests,getBDM,editSchedule,scheduleTask,deleteReq,changeLog,changelogView,requestNewDashboard,newDashboardSchedule,requestBy,siScheduler,newDashboardView}
+export {getDashboardbyDealer,uploadSchedule,getRequests,getBDM,editSchedule,scheduleTask,deleteReq,changeLog,changelogView,requestNewDashboard,newDashboardSchedule,requestBy,siScheduler,newDashboardView,countView,statusTimelime}
 
 
 
