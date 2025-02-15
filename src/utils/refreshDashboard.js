@@ -97,7 +97,6 @@ const refreshPPNI = async(brandid,dealerid,reqid)=>{
    try {
       const pool = await getPool1()
      let query = `use UAD_BI_PPNI exec UAD_PPNI_Report_LS @brandid,@dealerid`
-   //   const test = `use uad_bi select * from BackupTbl`
      const result =  await pool.request().input('brandid',sql.TinyInt,brandid).input('dealerid',sql.Int,dealerid).query(query)
       console.log(`Data Refreshing PPNI`);
       let Check =  isDataRefreshed(result.recordset[0])

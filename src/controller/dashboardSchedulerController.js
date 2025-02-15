@@ -93,7 +93,7 @@ try {
     //               -- and li.OgsStatus = 1 
     //               and li.Status = 1 and dm.Status = 1
     //               group by dm.tcode , dm.Dashboard`
-    const query = `select dm.tcode , dm.Dashboard  from DB_DashboardURL du
+    const query = `select dm.tCode , dm.Dashboard  from z_scope..DB_DashboardURL du
                     join z_scope..DB_DashboardMaster dm on dm.tcode = du.DashboardCode
                     where du.status = 1 and dm.Status = 1 and  dealerid  = @dealerid`
     const result = await pool.request().input('dealerid',sql.Int,dealerid).query(query)
