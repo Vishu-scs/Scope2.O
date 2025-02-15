@@ -150,7 +150,7 @@ const uploadSchedule = async (req, res) => {
         const futureThreshold = new Date(currentDate.getTime() + 24 * 60 * 60 * 1000); // 24 hours from now
         if (scheduledDate <= futureThreshold) {
           return res.status(400).json({
-            message: "Scheduled date must be at least 24 hours after the current date.",
+            message: "Scheduled Date cannot be today's date",
           });
         }
     

@@ -180,12 +180,10 @@ const getMAX = async (req, res) => {
 export {getBrands,getDealers,getLocation,getWorkspace,getDashboard,getMAX}
 
 
-// const query = `
-// select distinct sn.Brandid , sn.Dealerid, sn.locationid , sn.partnumber , pm.partdesc , pm.category , pm.mrp , pm.moq , sn.Maxvalue
-// from stockable_nonstockable_td001_20208 sn
-// join Part_Master pm on pm.partnumber = sn.Partnumber
-// where stockdate = '2025-02-01 00:00:00'  and sn.locationid = 40744
-// group by sn.Brandid , sn.Dealerid, sn.locationid , sn.partnumber , pm.partdesc , pm.category , pm.mrp , pm.moq , sn.Maxvalue
-// `
+// const query = `select distinct sn.Brandid , sn.Dealerid, sn.locationid , sn.partnumber , pm.partdesc , pm.category , pm.mrp , pm.moq , sn.Maxvalue
+//  from z_scope..stockable_nonstockable_td001_8 sn
+//  join z_scope..Part_Master pm on pm.partnumber = sn.Partnumber
+//  where stockdate = '2025-02-01 00:00:00'  
+//  group by sn.Brandid , sn.Dealerid, sn.locationid , sn.partnumber , pm.partdesc , pm.category , pm.mrp , pm.moq , sn.Maxvalue`
 //         const result = await pool.request().query(query)
 //         res.status(200).json(result.recordset)
