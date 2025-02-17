@@ -113,10 +113,13 @@ const result = await pool.request()
 // Extracting location IDs and NonMovingSale values
 const locations = result.recordset.map(row => row.location);
 const saleTypes = result.recordset.map(row => row.NonMovingSale);
-console.log({ locations, saleTypes });
+const pending = ({ locations, saleTypes });
 
-// Sending response (if using Express.js)
-return { locations, saleTypes };
+if (typeof pending === 'object' && !Array.isArray(pending) && Object.values(pending).every(val => Array.isArray(val) && val.length === 0)) {
+  return true;
+}
+// Otherwise, return the pending object
+return pending;
 
 
   } catch (error) {

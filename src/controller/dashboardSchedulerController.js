@@ -157,10 +157,12 @@ const uploadSchedule = async (req, res) => {
         // Validate dealer data
         const isDataValid = await dataValidator(dealerid);
         // console.log(`isDataUploaded: `,isDataValid);
-    
-        if (isDataValid) {
-          return res.status(400).json(isDataValid);
+        if(!isDataValid){
+          return  res.status(400).json(isDataValid);
         }
+        // if (isDataValid) {
+        //   return  res.status(400).json(isDataValid);
+        // }
     
         // Insert each dashboardcode into the database
         for (const dashboardcode of parsedDashboardCodes) {
@@ -551,7 +553,7 @@ try {
 }
 //  '0,30 0-9 * * *'  for every 30 minutes interval between 12 midnight to 9 am 
 function scheduleTask() {
-  cron.schedule('*/20 * * * *', async () => { 
+  cron.schedule('*/15 * * * *', async () => { 
     console.log("Running scheduler every 10 minutes")
     try {
       const pool = await getPool1()
@@ -585,7 +587,7 @@ function scheduleTask() {
             case 8: return refreshTOPS(task.dealerid, task.reqid)
             case 9: return refreshSpecialList(task.reqid)
             case 12: return refreshBenchmarking(task.dealerid, task.reqid)
-            case 13: return refreshSI(task.brand,task.reqid)
+            case 13: return refreshSI(task.dealerid,task.reqid)
             // case 14: return refreshGSI(task.brand, task.dealer, task.brandid, task.dealerid, task.reqid)
             case 15: return refreshCID(task.dealerid, task.reqid)
             case 17: return refreshGainerMini(task.reqid)
