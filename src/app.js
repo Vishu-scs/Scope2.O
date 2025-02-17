@@ -1,6 +1,6 @@
 import express  from 'express'
 import cors from 'cors'
-import { scheduleTask, siScheduler } from './controller/dashboardSchedulerController.js'
+import { scheduleTask } from './controller/dashboardSchedulerController.js'
 
 import dashboardSchedule from './routes/dashboardSchedulerRoute.js'
 import salesView from './routes/salesViewRoute.js'
@@ -9,8 +9,8 @@ const app = express()
 app.use(cors())
 app.use(express.json());
 
-scheduleTask()
-siScheduler()
+// scheduleTask()
+// siScheduler()
 
 
 app.use("/api/v1/master", MasterApi)

@@ -156,10 +156,10 @@ const uploadSchedule = async (req, res) => {
     
         // Validate dealer data
         const isDataValid = await dataValidator(dealerid);
-        console.log(`isDataUploaded: `,isDataValid);
+        // console.log(`isDataUploaded: `,isDataValid);
     
-        if (!isDataValid) {
-          return res.status(400).json({message:"Data for Dealer is not Updated"});
+        if (isDataValid) {
+          return res.status(400).json(isDataValid);
         }
     
         // Insert each dashboardcode into the database
@@ -551,7 +551,7 @@ try {
 }
 //  '0,30 0-9 * * *'  for every 30 minutes interval between 12 midnight to 9 am 
 function scheduleTask() {
-  cron.schedule('*/30 * * * *', async () => { 
+  cron.schedule('*/10 * * * *', async () => { 
     console.log("Running scheduler every 10 minutes")
 
     try {
@@ -586,7 +586,7 @@ function scheduleTask() {
             case 8: return refreshTOPS(task.dealerid, task.reqid)
             case 9: return refreshSpecialList(task.reqid)
             case 12: return refreshBenchmarking(task.dealerid, task.reqid)
-            case 13: return refreshSI(task.brand, task.dealer, task.brandid, task.dealerid, task.reqid)
+            case 13: return refreshSI(task.brand,task.reqid)
             // case 14: return refreshGSI(task.brand, task.dealer, task.brandid, task.dealerid, task.reqid)
             case 15: return refreshCID(task.dealerid, task.reqid)
             case 17: return refreshGainerMini(task.reqid)
@@ -639,39 +639,39 @@ const statusTimelime = async(req,res)=>{
   }
 }
 
-function siScheduler() {
-  cron.schedule('*/30 * * * *', async () => { 
-    console.log("Running scheduler for si every 10 minutes")
+// function siScheduler() {
+//   cron.schedule('*/30 * * * *', async () => { 
+//     console.log("Running scheduler for si every 10 minutes")
 
-    try {
-      const pool = await getPool1()
-      const today = new Date();
-      const year = today.getMonth() === 0 ? today.getFullYear() - 1 : today.getFullYear();
-      const month = today.getMonth() === 0 ? 11 : today.getMonth() - 1;
-      const firstDayLastMonth = new Date(year, month, 1);
+//     try {
+//       const pool = await getPool1()
+//       const today = new Date();
+//       const year = today.getMonth() === 0 ? today.getFullYear() - 1 : today.getFullYear();
+//       const month = today.getMonth() === 0 ? 11 : today.getMonth() - 1;
+//       const firstDayLastMonth = new Date(year, month, 1);
       
-      // Format date properly in YYYY-MM-DD format
-      const date = firstDayLastMonth.toLocaleDateString('en-CA'); // en-CA gives YYYY-MM-DD format
+//       // Format date properly in YYYY-MM-DD format
+//       const date = firstDayLastMonth.toLocaleDateString('en-CA'); // en-CA gives YYYY-MM-DD format
       
-      // console.log(date); // Correctly outputs "2025-01-01"
-      // Fetch tasks to be executed (status = 0 means pending)
-      let query = `use UAD_BI_SI;
-                    exec uad_si_report_3 '${date}'`
+//       // console.log(date); // Correctly outputs "2025-01-01"
+//       // Fetch tasks to be executed (status = 0 means pending)
+//       let query = `use UAD_BI_SI;
+//                     exec uad_si_report_3 '${date}'`
 
-      await pool.request().query(query)
-        query = `use UAD_BI 
-                Update SBS_DBS_ScheduledDashboard set Status = 3 where reqid in (select reqid from si_dealer_list where status = 1) and status = 1`
-      await pool.request().query(query)
+//       await pool.request().query(query)
+//         query = `use UAD_BI 
+//                 Update SBS_DBS_ScheduledDashboard set Status = 3 where reqid in (select reqid from si_dealer_list where status = 1) and status = 1`
+//       await pool.request().query(query)
       
-    }
-    catch(error){
-      console.log("Error in SI Scheduler",error.message);
+//     }
+//     catch(error){
+//       console.log("Error in SI Scheduler",error.message);
       
-        throw new error
-    }
-  })
-}
-export {getDashboardbyDealer,uploadSchedule,getRequests,getBDM,editSchedule,scheduleTask,deleteReq,changeLog,changelogView,requestNewDashboard,newDashboardSchedule,requestBy,siScheduler,newDashboardView,countView,statusTimelime}
+//         throw new error
+//     }
+//   })
+// }
+export {getDashboardbyDealer,uploadSchedule,getRequests,getBDM,editSchedule,scheduleTask,deleteReq,changeLog,changelogView,requestNewDashboard,newDashboardSchedule,requestBy,newDashboardView,countView,statusTimelime}
 
 
 

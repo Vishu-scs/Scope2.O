@@ -2,29 +2,70 @@ import { getPool1 } from "../db/db.js";
 import sql from 'mssql'
 import { checkGroupSetting } from "./dashboardscheduleHelper.js";
 
-const refreshSI = async(brand,dealer,brandid,dealerid,reqid) =>{
-try {
-   const pool = await getPool1() 
-   let query = `use [UAD_BI] 
-                   Insert into si_dealer_list (brand,dealer,brandid,dealerid,reqid)
-                   Values (@brand,@dealer,@brandid,@dealerid,@reqid)`
+// const refreshSI = async(brand,dealer,brandid,dealerid,reqid) =>{
+// try {
+//    const pool = await getPool1() 
+//    let query = `use [UAD_BI] 
+//                    Insert into si_dealer_list (brand,dealer,brandid,dealerid,reqid)
+//                    Values (@brand,@dealer,@brandid,@dealerid,@reqid)`
    
-           await pool.request()
-             .input('brand',sql.VarChar,brand)
-             .input('dealer',sql.VarChar,dealer)
-             .input('brandid',sql.Int,brandid)
-             .input('dealerid',sql.Int,dealerid)
-             .input('reqid',sql.Int,reqid)
-             .query(query)
+//            await pool.request()
+//              .input('brand',sql.VarChar,brand)
+//              .input('dealer',sql.VarChar,dealer)
+//              .input('brandid',sql.Int,brandid)
+//              .input('dealerid',sql.Int,dealerid)
+//              .input('reqid',sql.Int,reqid)
+//              .query(query)
    
-   console.log(`Data Refreshing SI`);
-   query = `use [UAD_BI] Update SBS_DBS_ScheduledDashboard set status = 1 where reqid = @reqid`
-         await pool.request().input('reqid',sql.Int,reqid).query(query)
+//    console.log(`Data Refreshing SI`);
+//    query = `use [UAD_BI] Update SBS_DBS_ScheduledDashboard set status = 1 where reqid = @reqid`
+//          await pool.request().input('reqid',sql.Int,reqid).query(query)
 
-} catch (error) {
-   console.error("Error refreshing SI and GSI:", error.message);
-}
-       
+// } catch (error) {
+//    console.error("Error refreshing SI and GSI:", error.message);
+// }     
+// }
+const refreshSI = async(dealerid,reqid)=>{
+   try {
+      const pool = await getPool1()
+            const today = new Date();
+            const year = today.getMonth() === 0 ? today.getFullYear() - 1 : today.getFullYear();
+            const month = today.getMonth() === 0 ? 11 : today.getMonth() - 1;
+            const firstDayLastMonth = new Date(year, month, 1);
+            
+            // Format date properly in YYYY-MM-DD format
+            const date = firstDayLastMonth.toLocaleDateString('en-CA'); // en-CA gives YYYY-MM-DD format
+            
+            console.log(date); // Correctly outputs "2025-01-01"
+            // Fetch tasks to be executed (status = 0 means pending)
+            let query = `use UAD_BI_SI;
+                         exec uad_si_report_3 '@dealerid ','${date}'`
+      
+          const result =   await pool.request().input('dealerid',sql.VarChar,dealerid).query(query)
+          console.log(`Data Refreshing SI`);
+
+      let Check =  isDataRefreshed(result.recordset[0])
+      //Data Refresh Done Successfully
+      if(Check){
+         query = `use [UAD_BI] Update SBS_DBS_ScheduledDashboard set status = 3 where reqid = @reqid`
+         await pool.request().input('reqid',sql.Int,reqid).query(query)
+      }
+   } 
+   // if SP fails then error is catched in catch block and then status = 2 (Data Refresh Failed) is updated here 
+   catch (error) {
+      console.error("Error refreshing SI:", error.message);
+      // Handle the failure scenario: update status to 2
+      try {
+        const pool = await getPool1();
+        let query = `use [UAD_BI] Update SBS_DBS_ScheduledDashboard set status = 2 where reqid = @reqid`;
+        await pool.request().input('reqid', sql.Int, reqid).query(query);
+
+        query = `use [UAD_BI] Insert into SBS_DBS_ErrorLog (reqid,Reason,addedon) values(@reqid,@error,GETDATE())`
+      await pool.request().input('reqid', sql.Int, reqid).input('error', sql.VarChar, error.message).query(query);
+      } catch (updateError) {
+        console.error("Error updating SBS_DBS_ScheduledDashboard:", updateError.message);
+      }
+    }
 }
 const refreshBenchmarking = async(dealerid,reqid)=>{
    try {
@@ -96,15 +137,15 @@ const refreshCID = async(dealerid,reqid)=>{
 const refreshPPNI = async(brandid,dealerid,reqid)=>{
    try {
       const pool = await getPool1()
-     let query = `use UAD_BI_PPNI exec UAD_PPNI_Report_LS @brandid,@dealerid`
-     const result =  await pool.request().input('brandid',sql.TinyInt,brandid).input('dealerid',sql.Int,dealerid).query(query)
+      // let query = `use UAD_BI_PPNI exec UAD_PPNI_Report_LS @brandid,@dealerid`
+      // const result =  await pool.request().input('brandid',sql.TinyInt,brandid).input('dealerid',sql.Int,dealerid).query(query)
       console.log(`Data Refreshing PPNI`);
-      let Check =  isDataRefreshed(result.recordset[0])
+      // let Check =  isDataRefreshed(result.recordset[0])
       //Data Refresh Done Successfully
-      if(Check){
-         query = `use [UAD_BI] Update SBS_DBS_ScheduledDashboard set status = 3 where reqid = @reqid`
+      // if(Check){
+        const  query = `use [UAD_BI] Update SBS_DBS_ScheduledDashboard set status = 3 where reqid = @reqid`
          await pool.request().input('reqid',sql.Int,reqid).query(query)
-      }
+      // }
    } catch (error) {
    console.error("Error refreshing PPNI:", error.message);
    try {
