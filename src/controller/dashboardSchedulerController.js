@@ -551,9 +551,8 @@ try {
 }
 //  '0,30 0-9 * * *'  for every 30 minutes interval between 12 midnight to 9 am 
 function scheduleTask() {
-  cron.schedule('*/10 * * * *', async () => { 
+  cron.schedule('*/20 * * * *', async () => { 
     console.log("Running scheduler every 10 minutes")
-
     try {
       const pool = await getPool1()
 
