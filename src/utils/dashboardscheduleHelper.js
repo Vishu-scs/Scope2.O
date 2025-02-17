@@ -11,7 +11,7 @@ const dataValidator = async (dealerid) => {
     SELECT li.locationid, dsm.NonMovingSale
     FROM z_scope..Dealer_Setting_Master dsm
     JOIN locationinfo li ON li.LocationID = dsm.locationid
-    WHERE dsm.dealerid = @dealerid
+    WHERE dsm.dealerid = @dealerid and li.Status = 1
 )
 SELECT li.location, d.NonMovingSale
 FROM data d
@@ -24,7 +24,7 @@ LEFT JOIN z_scope..${dynamicTable} ds
             WHEN MONTH(GETDATE()) = 1 THEN YEAR(GETDATE()) - 1
             ELSE YEAR(GETDATE()) 
         END
-        join locationinfo li on d.LocationID = li.LocationID
+        join locationinfo li on d.LocationID = li.LocationID and li.Status = 1
 WHERE ds.locationid IS NULL;`
 //     const query = `USE [z_scope]; 
 //                 select 
