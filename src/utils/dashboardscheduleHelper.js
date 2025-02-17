@@ -114,8 +114,13 @@ const result = await pool.request()
 const locations = result.recordset.map(row => row.location);
 const saleTypes = result.recordset.map(row => row.NonMovingSale);
 const pending = ({ locations, saleTypes });
+// console.log(pending);
 
-if (typeof pending === 'object' && !Array.isArray(pending) && Object.values(pending).every(val => Array.isArray(val) && val.length === 0)) {
+
+if ( typeof pending === 'object' &&
+  pending !== null &&
+  (Array.isArray(pending.locations) && pending.locations.length === 0 || 
+   Array.isArray(pending.saleTypes) && pending.saleTypes.length === 0)) {
   return true;
 }
 // Otherwise, return the pending object
@@ -205,7 +210,7 @@ if ((firstRecord.Status === 5 || firstRecord.Status === 6) ) {
     console.log("Status is 5 or 6 and scheduled date is earlier than allowed date. Scheduling allowed.");
     return true;
 }
-if(firstRecord.Status === 0){
+if(firstRecord.Status === 0 ){
   console.log("Scheduling not allowed.");
 return false;
 }

@@ -30,29 +30,20 @@ const refreshSI = async(dealerid,reqid)=>{
    
    try {
       const pool = await getPool1()
-            // const today = new Date();
-            // const year = today.getMonth() === 0 ? today.getFullYear() - 1 : today.getFullYear();
-            // const month = today.getMonth() === 0 ? 11 : today.getMonth() - 1;
-            // const firstDayLastMonth = new Date(year, month, 1);
-            
-            // // Format date properly in YYYY-MM-DD format
-            // // const date = firstDayLastMonth.toLocaleDateString('en-CA'); // en-CA gives YYYY-MM-DD format
-            // const date = firstDayLastMonth.toISOString().split('T')[0];  // YYYY-MM-DD
-            // console.log(typeof(date))
             const today = new Date();
-const year = today.getMonth() === 0 ? today.getFullYear() - 1 : today.getFullYear();
-const month = today.getMonth() === 0 ? 11 : today.getMonth() - 1;
-const firstDayLastMonth = new Date(year, month, 1);
-
-// Pass the date object directly, without converting to string
-const date = firstDayLastMonth;
+            const year = today.getMonth() === 0 ? today.getFullYear() - 1 : today.getFullYear();
+            const month = today.getMonth() === 0 ? 11 : today.getMonth() - 1;
+            const firstDayLastMonth = new Date(year, month, 1);
+            // 
+            // Format date properly in YYYY-MM-DD format
+            const date = firstDayLastMonth.toLocaleDateString('en-CA'); // en-CA gives YYYY-MM-DD format
+            // console.log(typeof(date),date)
 
             // console.log(date); //  outputs "2025-01-01"
-            // Fetch tasks to be executed (status = 0 means pending)
             let query = `use UAD_BI_SI;
-                         exec uad_si_report_3 '@dealerid','@date'`
+                         exec uad_si_report_3 '${dealerid}','${date}'`
       
-          const result =  await pool.request().input('dealerid',sql.Int,dealerid).input('date',sql.Date,date).query(query)
+          const result =  await pool.request().query(query)
           console.log(`Data Refreshing SI`);
 
       let Check =  isDataRefreshed(result.recordset[0])

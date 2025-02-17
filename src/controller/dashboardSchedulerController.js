@@ -146,23 +146,32 @@ const uploadSchedule = async (req, res) => {
         }
     
         // Check if the date is at least 24 hours in the future
+        // const currentDate = new Date();
+        // const futureThreshold = new Date(currentDate.getTime() + 24 * 60 * 60 * 1000); // 24 hours from now
+        // if (scheduledDate <= futureThreshold) {
+        //   return res.status(400).json({
+        //     message: "Scheduled Date cannot be today's date",
+        //   });
+        // }
         const currentDate = new Date();
-        const futureThreshold = new Date(currentDate.getTime() + 24 * 60 * 60 * 1000); // 24 hours from now
-        if (scheduledDate <= futureThreshold) {
+
+        // Move to the next day at 00:00:00 (midnight)
+        const nextDayStart = new Date(currentDate);
+        nextDayStart.setDate(nextDayStart.getDate() + 1);
+        nextDayStart.setHours(0, 0, 0, 0); // Set time to midnight
+
+        if (scheduledDate < nextDayStart) {
           return res.status(400).json({
-            message: "Scheduled Date cannot be today's date",
+            message: "Scheduled date must be on the next day or later.",
           });
         }
-    
+
         // Validate dealer data
         const isDataValid = await dataValidator(dealerid);
         // console.log(`isDataUploaded: `,isDataValid);
-        if(!isDataValid){
-          return  res.status(400).json(isDataValid);
+        if(typeof(isDataValid)==="object"){
+          return res.status(400).json(isDataValid);
         }
-        // if (isDataValid) {
-        //   return  res.status(400).json(isDataValid);
-        // }
     
         // Insert each dashboardcode into the database
         for (const dashboardcode of parsedDashboardCodes) {
@@ -557,7 +566,6 @@ function scheduleTask() {
     console.log("Running scheduler every 10 minutes")
     try {
       const pool = await getPool1()
-
       // Fetch tasks to be executed (status = 0 means pending)
       const query = `use [UAD_BI]
                      SELECT TOP 5  reqid, dashboardcode, brand, brandid, dealer, dealerid, scheduledon
