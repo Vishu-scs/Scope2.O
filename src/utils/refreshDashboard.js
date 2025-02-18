@@ -26,7 +26,7 @@ import { checkGroupSetting } from "./dashboardscheduleHelper.js";
 // }     
 // }
 const refreshSI = async(dealerid,reqid)=>{
-   console.log(dealerid , reqid);
+   // console.log(dealerid , reqid);
    
    try {
       const pool = await getPool1()
@@ -47,8 +47,9 @@ const refreshSI = async(dealerid,reqid)=>{
           console.log(`Data Refreshing SI`);
 
       let Check =  isDataRefreshed(result.recordset[0])
+
       //Data Refresh Done Successfully
-      if(Check){
+      if(Check && Check === 'Success'){
          query = `use [UAD_BI] Update SBS_DBS_ScheduledDashboard set status = 3 where reqid = @reqid`
          await pool.request().input('reqid',sql.Int,reqid).query(query)
       }

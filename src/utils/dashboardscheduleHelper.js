@@ -132,7 +132,6 @@ return pending;
     throw error;
   }
 };
-
 const checkisAlreadyScheduled = async (dashboardcode, brandid, dealerid) => {
   const pool = await getPool1();
 
@@ -157,55 +156,19 @@ const checkisAlreadyScheduled = async (dashboardcode, brandid, dealerid) => {
       .input('dealerid', sql.Int, dealerid)
       .query(query);
 
-    // console.log('Query results:', result.recordsets);
-
-    // Check for the last scheduled date
-    // const lastscheduledfor = result.recordsets[0]?.[0]?.scheduledon;
-    // console.log("last",lastscheduledfor);
-    
-
-    // if (!lastscheduledfor) {
-    //   console.log('No previous schedule found.');
-    //   return true; // Allow scheduling if no previous schedule exists
-    // }
-
-    // const allowedtoscheduleon = new Date(lastscheduledfor);
-    // allowedtoscheduleon.setDate(allowedtoscheduleon.getDate() + 0);
-    // console.log("allowed",allowedtoscheduleon);
-    
-    // // Check if scheduling conditions are met
-    // if (result.recordsets[1].length === 0 || 
-    //     ((result.recordsets[1][0].Status === 5 || result.recordsets[1][0].Status === 6) && 
-    //      new Date(result.recordsets[1][0].ScheduledOn) < allowedtoscheduleon)) {
-    //   return true;
-    //   console.log(`true`);
-    // }
-
-    // return false;
-    // console.log(`false`);
     const lastscheduledfor = result.recordsets[0]?.[0]?.ScheduledOn;
-    // console.log(result.recordsets[0]);
-    // console.log(result.recordsets[1]);
-
-
-// if (!lastscheduledfor) {
-//     console.log('No previous schedule found. Scheduling allowed.');
-//     return true;
-// }
 
 const allowedtoscheduleon = new Date(lastscheduledfor);
-console.log("Allowed to Schedule On:", allowedtoscheduleon);
+// console.log("Allowed to Schedule On:", allowedtoscheduleon);
 
 if (result.recordsets[1].length === 0) {
-    console.log("No existing scheduled requests. Scheduling allowed.");
+    // console.log("No existing scheduled requests. Scheduling allowed.");
     return true;
 }
 
 const firstRecord = result.recordsets[1][0];
 const scheduledDate = new Date(firstRecord.ScheduledOn);
 // console.log(firstRecord);
-
-
 if ((firstRecord.Status === 5 || firstRecord.Status === 6) ) {
     console.log("Status is 5 or 6 and scheduled date is earlier than allowed date. Scheduling allowed.");
     return true;
@@ -215,8 +178,6 @@ if(firstRecord.Status === 0 ){
 return false;
 }
 
-
-    
   } catch (error) {
     console.error('Error in checkisAlreadyScheduled:', error.message);
     throw error;
@@ -252,7 +213,7 @@ const checkGroupSetting = async(dealerid)=>{
   }   
 }
 const checkisMappingExists = async (dashboardcode,dealerid)=>{
-  console.log(dashboardcode,dealerid);
+  // console.log(dashboardcode,dealerid);
   try {
     const pool  = await getPool1()
     const query = `select dashboardcode , dealerid from UAD_BI..SBS_DBS_DashboardDealerMapping where dealerid = @dealerid and dashboardcode = @dashboardcode`

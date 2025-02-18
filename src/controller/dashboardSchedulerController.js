@@ -4,95 +4,10 @@ import {getPool1} from '../db/db.js'
 import {dataValidator,checkisAlreadyScheduled,checkisUserValid, checkisMappingExists,checkGroupSetting} from '../utils/dashboardscheduleHelper.js'
 import {refreshBenchmarking, refreshPPNI, refreshSI, refreshTOPS, refreshCID, refreshSpecialList, refreshGainerMini} from '../utils/refreshDashboard.js'
 
-// const getBrandsforDashboard = async (req, res) => {
-//   const pool = await getPool1();
-//   try {
-//     const { DashboardCode } = req.body;
-
-//     // Validate that DashboardCodes is an array and not empty
-//     if (!Array.isArray(DashboardCode) || DashboardCode.length === 0) {
-//       return res.status(400).json({ error: "DashboardCodes must be a non-empty array." });
-//     }
-
-//     // Construct a dynamic query with placeholders for each DashboardCode
-//     const placeholders = DashboardCode.map((_, index) => `@DashboardCode${index}`).join(', ');
-//     const query = `
-//       USE [z_scope];
-//       SELECT li.brand, li.brandid
-//       FROM [dbo].[DB_DashboardLocMapping] dlm
-//       JOIN locationinfo li ON li.locationid = dlm.LocationID
-//       WHERE dlm.DashboardCode IN (${placeholders}) and li.ogsstatus = 1 and li.status =1 and dlm.status = 1
-//       GROUP BY li.brand, li.brandid
-//       HAVING COUNT(DISTINCT dlm.DashboardCode) = @TotalDashboardCodes
-//       ORDER BY li.brandid;
-//     `;
-
-//     // Bind each DashboardCode to a parameter
-//     const request = pool.request();
-//     DashboardCode.forEach((code, index) => {
-//       request.input(`DashboardCode${index}`, sql.Int, code);
-//     });
-
-//     // Bind the total count of DashboardCodes
-//     request.input("TotalDashboardCodes", sql.Int, DashboardCode.length);
-
-//     const result = await request.query(query);
-
-//     // Respond with the result
-//     res.status(200).json({Brands:result.recordset });
-//   } catch (error) {
-//     console.error("Error fetching common brands for dashboards:", error.message);
-//     res.status(500).send(error.message);
-//   }
-// };
-// const getDealersforDashboard = async(req,res)=>{
-// const pool = await getPool1();
-// try {
-//   const {DashboardCode,brandid} = req.body
-
-//   if (!Array.isArray(DashboardCode) || DashboardCode.length === 0) {
-//     return res.status(400).json({ error: "DashboardCodes must be a non-empty array." });
-//   }
-//   const placeholders = DashboardCode.map((_, index) => `@DashboardCode${index}`).join(', ');
-//   const query =`USE [z_scope];
-//       SELECT li.dealer, li.dealerid
-//       FROM [dbo].[DB_DashboardLocMapping] dlm
-//       JOIN locationinfo li ON li.locationid = dlm.LocationID
-//       WHERE dlm.DashboardCode IN (${placeholders}) and brandid = @brandid and li.ogsstatus = 1 and li.status =1 and dlm.status = 1
-// 	  GROUP BY li.dealer, li.dealerid
-//       HAVING COUNT(DISTINCT dlm.DashboardCode) = @TotalDashboardCodes 
-// 	  ORDER BY li.dealerid;`
-//   // const result = await pool.request().input('brandid',sql.Int,brandid).input('DashboardCode',sql.Int,DashboardCode).query(query)
-//   // console.log(result.recordset);
-
-//   const request = pool.request();
-//     DashboardCode.forEach((code, index) => {
-//       request.input(`DashboardCode${index}`, sql.Int, code);
-//     });
-
-//     // Bind the total count of DashboardCodes
-//     request.input("TotalDashboardCodes", sql.Int, DashboardCode.length);
-
-//     const result = await request.input('brandid',sql.Int,brandid).query(query);
-
-//   res.status(200).json({Dealers:result.recordset})
-// } catch (error) {
-//   res.status(500).send(error.message)
-// }
-
-// }
-
 const getDashboardbyDealer = async(req,res)=>{
   const pool = await getPool1();
   const {dealerid} = req.body
 try {  
-    // const query = `use [z_scope] select dm.tCode , dm.Dashboard from DB_DashboardLocMapping dlm                  
-    //               join LocationInfo li on li.LocationID = dlm.LocationID
-    //               join DB_DashboardMaster dm on dm.tCode = dlm.DashboardCode
-    //               where dealerid = @dealerid and dlm.Status = 1  
-    //               -- and li.OgsStatus = 1 
-    //               and li.Status = 1 and dm.Status = 1
-    //               group by dm.tcode , dm.Dashboard`
     const query = `select dm.tCode , dm.Dashboard  from z_scope..DB_DashboardURL du
                     join z_scope..DB_DashboardMaster dm on dm.tcode = du.DashboardCode
                     where du.status = 1 and dm.Status = 1 and  dealerid  = @dealerid`
@@ -177,13 +92,13 @@ const uploadSchedule = async (req, res) => {
         for (const dashboardcode of parsedDashboardCodes) {
 
         const isAlreadyScheduled = await checkisAlreadyScheduled(dashboardcode,brandid,dealerid)
-         console.log(`already scheduled: `,isAlreadyScheduled);
+        //  console.log(`already scheduled: `,isAlreadyScheduled);
          if(!isAlreadyScheduled){
           return res.status(401).json({message:`Dashboard Already Scheduled`})
          }
          if (dashboardcode == 15) {
           const isGroupSettingDone = await checkGroupSetting(dealerid) 
-            console.log(isGroupSettingDone);
+            // console.log(isGroupSettingDone);
      
            if(!isGroupSettingDone){
            return res.status(400).json({message:`Group Setting Not done`})
@@ -203,7 +118,7 @@ const uploadSchedule = async (req, res) => {
             .query(query);
         }
     
-        console.log("Dashboard successfully uploaded.");
+        // console.log("Dashboard successfully uploaded.");
         res.status(201).json({ message: "Dashboard Successfully Scheduled" });
       }
       else{
@@ -438,7 +353,7 @@ const newDashboardSchedule = async (req, res) => {
 
     // Validate dealer data
     const isDataValid = await dataValidator(dealerid);
-    console.log(`isDataValid:`, isDataValid);
+    // console.log(`isDataValid:`, isDataValid);
 
     if (!isDataValid) {
       return res.status(400).json({ message: "Data for Dealer is not updated." });
@@ -446,7 +361,7 @@ const newDashboardSchedule = async (req, res) => {
 
     for (const dashboardcode of dashboardcodes) {
       const isAlreadyScheduled = await checkisAlreadyScheduled(dashboardcode, brandid, dealerid);
-      console.log(`Already scheduled:`, isAlreadyScheduled);
+      // console.log(`Already scheduled:`, isAlreadyScheduled);
 
       if (!isAlreadyScheduled) {
         return res.status(400).json({ message: `Dashboard ${dashboardcode} is already scheduled.` });
@@ -563,7 +478,7 @@ try {
 //  '0,30 0-9 * * *'  for every 30 minutes interval between 12 midnight to 9 am 
 function scheduleTask() {
   cron.schedule('*/15 * * * *', async () => { 
-    console.log("Running scheduler every 10 minutes")
+    console.log("Running scheduler every 15 minutes")
     try {
       const pool = await getPool1()
       // Fetch tasks to be executed (status = 0 means pending)
@@ -575,13 +490,13 @@ function scheduleTask() {
       const tasks = result.recordset
 
       if (!tasks.length) {
-        console.log(`No requests scheduled in the last 10 minutes.`)
+        console.log(`No requests scheduled in the last 15 minutes.`)
         return
       }
 
       // Process all tasks in parallel
       const taskPromises = tasks.map(async (task) => {
-        console.log(`Processing task for dashboardcode: ${task.dashboardcode}, dealer: ${task.dealer}, scheduledon: ${task.scheduledon}`)
+        // console.log(`Processing task for dashboardcode: ${task.dashboardcode}, dealer: ${task.dealer}, scheduledon: ${task.scheduledon}`)
 
         try {
           // Mark status as "SP IS RUNNING In-Progress" (1)
