@@ -107,3 +107,27 @@ use [UAD_BI] select
       order by reqid desc
 
 -------------------------------------------------------------------------------------------------------------
+---Have to user this for data validation
+WITH data AS (
+    SELECT li.locationid, dsm.NonMovingSale
+    FROM z_scope..Dealer_Setting_Master dsm
+    JOIN locationinfo li ON li.LocationID = dsm.locationid
+    WHERE dsm.dealerid = 8 AND li.Status = 1
+)
+SELECT li.location, d.NonMovingSale
+FROM data d
+LEFT JOIN z_scope..dealer_sale_upload1_td001_8 ds 
+    ON d.locationid = ds.locationid 
+    AND (
+        (d.NonMovingSale = 'BS' AND ds.SaleType IN ('WS', 'CS'))
+        OR (d.NonMovingSale = 'WS' AND ds.SaleType = 'CS')
+        OR (d.NonMovingSale = 'CS' AND ds.SaleType = 'WS')
+    )
+    AND ds.StockDateMonth = MONTH(DATEADD(MONTH, -1, GETDATE()))  
+    AND ds.StockDateYear = 
+        CASE 
+            WHEN MONTH(GETDATE()) = 1 THEN YEAR(GETDATE()) - 1
+            ELSE YEAR(GETDATE()) 
+        END
+JOIN locationinfo li ON d.LocationID = li.LocationID AND li.Status = 1
+WHERE ds.locationid IS NULL;

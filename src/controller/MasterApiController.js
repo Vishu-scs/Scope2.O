@@ -69,7 +69,7 @@ const partNature = async(req,res)=>{
 const seasonal = async(req,res)=>{
     try {
          const pool = await getPool1()
-         const query = `select tCode , Description  from seasonalmaster`
+         const query = `use [z_scope] select tCode , Description  from seasonalmaster`
          const result = await pool.request().query(query)
          res.status(200).json({Data:result.recordset})
     } catch (error) {

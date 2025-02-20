@@ -5,107 +5,52 @@ const dataValidator = async (dealerid) => {
   const pool = await getPool1();
 
   try {
-    const dynamicTable = `dealer_sale_upload1_td001_${dealerid}`;
-    const query = `
+    const dynamicTable = `z_scope..dealer_sale_upload1_td001_${dealerid}`;
+    const query = ` use [z_scope] 
     WITH data AS (
     SELECT li.locationid, dsm.NonMovingSale
     FROM z_scope..Dealer_Setting_Master dsm
     JOIN locationinfo li ON li.LocationID = dsm.locationid
-    WHERE dsm.dealerid = @dealerid and li.Status = 1
+    WHERE dsm.dealerid = @dealerid AND li.Status = 1
 )
 SELECT li.location, d.NonMovingSale
 FROM data d
-LEFT JOIN z_scope..${dynamicTable} ds 
+LEFT JOIN ${dynamicTable} ds 
     ON d.locationid = ds.locationid 
-    AND d.NonMovingSale = ds.SaleType
+    AND (
+        (d.NonMovingSale = 'BS' AND ds.SaleType IN ('WS', 'CS'))
+        OR (d.NonMovingSale = 'WS' AND ds.SaleType = 'CS')
+        OR (d.NonMovingSale = 'CS' AND ds.SaleType = 'WS')
+    )
     AND ds.StockDateMonth = MONTH(DATEADD(MONTH, -1, GETDATE()))  
     AND ds.StockDateYear = 
         CASE 
             WHEN MONTH(GETDATE()) = 1 THEN YEAR(GETDATE()) - 1
             ELSE YEAR(GETDATE()) 
         END
-        join locationinfo li on d.LocationID = li.LocationID and li.Status = 1
+JOIN locationinfo li ON d.LocationID = li.LocationID AND li.Status = 1
 WHERE ds.locationid IS NULL;`
-//     const query = `USE [z_scope]; 
-//                 select 
-//                 sum(case 
-//             when dsm.NonMovingSale = 'BS' then 2
-//             when dsm.NonMovingSale in ('WS', 'CS') then 1
-//             else 0 -- Optional: Count as 0 for any other values
-//         end) as RequiredCount
-// from Dealer_Setting_master dsm
-// join locationinfo li
-//     on dsm.locationid = li.LocationID
-// where li.DealerID = @dealerid and li.status = 1
-// -- Ensure the previous statement is terminated before using CTE
-// ;
-// WITH LocationSaleType AS (
-//     -- Step 1: Get all active locations and their NonMovingSale types
-//     SELECT 
-//         li.LocationID, 
-//         dsm.NonMovingSale 
-//     FROM Dealer_Setting_master dsm
-//     JOIN locationinfo li
-//         ON dsm.locationid = li.LocationID
-//     WHERE li.DealerID = @dealerid
-//     -- AND li.OgsStatus = 1
-// ),
-// FilteredSales AS (
-//     -- Main query to filter data based on conditions
-//     SELECT 
-//         ds.locationid,
-//         ds.saletype,
-//         ds.StockDateMonth,
-//         ds.StockDateYear
-//     FROM ${dynamicTable} ds
-//     WHERE ds.locationid IN (SELECT LocationID FROM LocationSaleType)
-//     AND (
-//         -- Conditional filtering based on SaleType
-//         (EXISTS (
-//             SELECT 1 
-//             FROM LocationSaleType lst
-//             WHERE lst.LocationID = ds.locationid 
-//               AND lst.NonMovingSale = 'WS'
-//         ) AND ds.saletype = 'WS')
-//         OR
-//         (EXISTS (
-//             SELECT 1 
-//             FROM LocationSaleType lst
-//             WHERE lst.LocationID = ds.locationid 
-//               AND lst.NonMovingSale = 'CS'
-//         ) AND ds.saletype = 'CS')
-//         OR
-//         (EXISTS (
-//             SELECT 1 
-//             FROM LocationSaleType lst
-//             WHERE lst.LocationID = ds.locationid 
-//               AND lst.NonMovingSale = 'BS'
-//         ) AND ds.saletype IN ('WS', 'CS'))  
-//     )
-//     AND ds.StockDateMonth = MONTH(DATEADD(MONTH, -1, GETDATE()))  
-//     AND ds.StockDateYear = CASE 
-//         WHEN MONTH(GETDATE()) = 1 THEN YEAR(GETDATE()) - 1
-//         ELSE YEAR(GETDATE())
-//     END
+//     const query = `
+//     WITH data AS (
+//     SELECT li.locationid, dsm.NonMovingSale
+//     FROM z_scope..Dealer_Setting_Master dsm
+//     JOIN locationinfo li ON li.LocationID = dsm.locationid
+//     WHERE dsm.dealerid = @dealerid and li.Status = 1
 // )
-// -- Counting the number of rows
-// SELECT COUNT(*) AS GettingRowCount
-// FROM FilteredSales;
-// `
+// SELECT li.location, d.NonMovingSale
+// FROM data d
+// LEFT JOIN z_scope..${dynamicTable} ds 
+//     ON d.locationid = ds.locationid 
+//     AND d.NonMovingSale = ds.SaleType
+//     AND ds.StockDateMonth = MONTH(DATEADD(MONTH, -1, GETDATE()))  
+//     AND ds.StockDateYear = 
+//         CASE 
+//             WHEN MONTH(GETDATE()) = 1 THEN YEAR(GETDATE()) - 1
+//             ELSE YEAR(GETDATE()) 
+//         END
+//         join locationinfo li on d.LocationID = li.LocationID and li.Status = 1
+// WHERE ds.locationid IS NULL;`
 
-    // const result = await pool.request().input('dealerid', sql.Int, dealerid).query(query)
-  // .input('dynamicTable', sql.VarChar, dynamicTable)
-  
-// const RequiredCount = result.recordsets[0][0].RequiredCount
-// const GettingRowCount = result.recordsets[1][0].GettingRowCount
-// // console.log(result.recordsets);
-
-// if(RequiredCount == GettingRowCount){
-//     return true;
-// }
-// else{
-//     return false;
-// }
 const result = await pool.request()
     .input('dealerid', sql.Int, dealerid)
     .query(query);
