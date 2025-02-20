@@ -19,8 +19,8 @@ LEFT JOIN ${dynamicTable} ds
     ON d.locationid = ds.locationid 
     AND (
         (d.NonMovingSale = 'BS' AND ds.SaleType IN ('WS', 'CS'))
-        OR (d.NonMovingSale = 'WS' AND ds.SaleType = 'CS')
-        OR (d.NonMovingSale = 'CS' AND ds.SaleType = 'WS')
+        OR (d.NonMovingSale = 'WS' AND ds.SaleType = 'WS')
+        OR (d.NonMovingSale = 'CS' AND ds.SaleType = 'CS')
     )
     AND ds.StockDateMonth = MONTH(DATEADD(MONTH, -1, GETDATE()))  
     AND ds.StockDateYear = 
@@ -39,7 +39,7 @@ const result = await pool.request()
 const locations = result.recordset.map(row => row.location);
 const saleTypes = result.recordset.map(row => row.NonMovingSale);
 const pending = ({ locations, saleTypes });
-console.log(pending);
+// console.log(pending);
 
 
 if ( typeof pending === 'object' &&
