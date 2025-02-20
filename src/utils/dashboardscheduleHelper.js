@@ -6,7 +6,7 @@ const dataValidator = async (dealerid) => {
 
   try {
     const dynamicTable = `z_scope..dealer_sale_upload1_td001_${dealerid}`;
-    const query = ` use [z_scope] 
+    const query = `
     WITH data AS (
     SELECT li.locationid, dsm.NonMovingSale
     FROM z_scope..Dealer_Setting_Master dsm
@@ -30,26 +30,6 @@ LEFT JOIN ${dynamicTable} ds
         END
 JOIN locationinfo li ON d.LocationID = li.LocationID AND li.Status = 1
 WHERE ds.locationid IS NULL;`
-//     const query = `
-//     WITH data AS (
-//     SELECT li.locationid, dsm.NonMovingSale
-//     FROM z_scope..Dealer_Setting_Master dsm
-//     JOIN locationinfo li ON li.LocationID = dsm.locationid
-//     WHERE dsm.dealerid = @dealerid and li.Status = 1
-// )
-// SELECT li.location, d.NonMovingSale
-// FROM data d
-// LEFT JOIN z_scope..${dynamicTable} ds 
-//     ON d.locationid = ds.locationid 
-//     AND d.NonMovingSale = ds.SaleType
-//     AND ds.StockDateMonth = MONTH(DATEADD(MONTH, -1, GETDATE()))  
-//     AND ds.StockDateYear = 
-//         CASE 
-//             WHEN MONTH(GETDATE()) = 1 THEN YEAR(GETDATE()) - 1
-//             ELSE YEAR(GETDATE()) 
-//         END
-//         join locationinfo li on d.LocationID = li.LocationID and li.Status = 1
-// WHERE ds.locationid IS NULL;`
 
 const result = await pool.request()
     .input('dealerid', sql.Int, dealerid)
@@ -59,7 +39,7 @@ const result = await pool.request()
 const locations = result.recordset.map(row => row.location);
 const saleTypes = result.recordset.map(row => row.NonMovingSale);
 const pending = ({ locations, saleTypes });
-// console.log(pending);
+console.log(pending);
 
 
 if ( typeof pending === 'object' &&
