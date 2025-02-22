@@ -59,7 +59,8 @@ const uploadSchedule = async (req, res) => {
         if (isNaN(scheduledDate.getTime())) {
           return res.status(400).json({ error: "Invalid date format for 'scheduledon'." });
         }
-    
+      // console.log("scheduledDate: ",scheduledDate);
+      
         // Check if the date is at least 24 hours in the future
         // const currentDate = new Date();
         // const futureThreshold = new Date(currentDate.getTime() + 24 * 60 * 60 * 1000); // 24 hours from now
@@ -69,15 +70,18 @@ const uploadSchedule = async (req, res) => {
         //   });
         // }
         const currentDate = new Date();
+        // console.log("currentDate ",currentDate);
+        
 
         // Move to the next day at 00:00:00 (midnight)
         const nextDayStart = new Date(currentDate);
         nextDayStart.setDate(nextDayStart.getDate() + 1);
         nextDayStart.setHours(0, 0, 0, 0); // Set time to midnight
-
+        // console.log("nextDayStart ",nextDayStart);
+        
         if (scheduledDate < nextDayStart) {
           return res.status(400).json({
-            message: "Scheduled date must be on the next day or later.",
+            Error: "Scheduled date must be on the next day or later.",
           });
         }
 
