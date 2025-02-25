@@ -1,7 +1,8 @@
 import Router from 'express'
-import { viewMax } from '../controller/vonController.js'
+import { userFeedbacklog, viewMax } from '../controller/vonController.js'
 const router = Router()
 
 router.route('/view').post(viewMax)
+router.route('/userlog').post(userFeedbacklog)
 
 export default router
