@@ -1,20 +1,84 @@
 import {getPool1} from '../db/db.js'
 import sql from 'mssql'
+import { partBrandCheck } from '../utils/vonHelper.js'
 
-const viewMax = async(req,res)=>{
+
+const remarkMaster = async (req,res)=>{
+try {
+        const pool = await getPool1()
+        const {brandid} = req.body
+        const query = `use [UAD_VON] select Remarkid , remark from UAD_VON_RemarksMaster where brandid = ${brandid} and status =1`
+        const result = await pool.request().query(query)
+        res.status(200).json({Data:result.recordset})
+} catch (error) {
+    res.status(500).json({Error:error.message})
+}
+}
+const newRemark = async(req,res)=>{
+try {
+        const pool = await getPool1()
+        const {remark,  brandid , addedby , usertype} = req.body
+        if(!remark || !brandid || !addedby || !usertype) {
+            return res.status(400).json({message:`All fields are required`})
+        }
+        const query = ` use [UAD_VON]
+                        insert into UAD_VON_RemarksMaster (remark,brandid,addedby,usertype)
+                        values('${remark}',${brandid},${addedby},'${usertype}')`
+          
+          await pool.request().query(query)
+          res.status(201).json({message:`Remark successfully Created`})
+    } catch (error) {
+            res.status(500).json({Error:error.message})
+        }
+}
+const viewRemark = async(req,res)=>{
+try {
+        const pool = await getPool1()
+        const {brandid , usertype} = req.body
+
+        if(!usertype ==='A' || !usertype === 'U'){
+                return res.status(400).json({message:`usertype should be 'A' or 'U'`})
+        }
+        const query = ` use [UAD_VON]
+           DECLARE @Brandid INT = ${brandid},
+            @Usertype VARCHAR(1) = '${usertype}';  -- Change to NULL to get all user types
+            SELECT 
+                rm.remarkid, 
+                rm.remark, 
+                bm.vcbrand, 
+                CONCAT(amg.vcFirstName, ' ', amg.vcLastName) AS AddedBy, 
+                rm.addedon, 
+                rm.status 
+            FROM UAD_VON_RemarksMaster rm
+            JOIN z_scope..Brand_Master bm   
+                ON bm.bigid = rm.brandid
+            JOIN z_scope..AdminMaster_GEN amg 
+                ON amg.bintId_Pk = rm.addedby
+            WHERE 
+                (@Brandid IS NULL OR rm.brandid = @Brandid)  -- If NULL, fetch all brands; otherwise, filter
+                AND (@Usertype IS NULL OR rm.usertype = @Usertype);  -- If NULL, fetch all user types; otherwise, filter
+                `
+               const result = await  pool.request().query(query)
+               res.status(200).json({Data:result.recordset})
+} catch (error) {
+    res.status(500).json({Error:error.message})
+}
+}
+const userView = async(req,res)=>{
 try {
         const pool = await  getPool1()
-        const {dealerid,r1, r2 , partnumber , locationid , flag, seasonalid, modelid, natureid} = req.body
-        if(!dealerid){
-            return res.status(400).json({Error:`Dealerid is a required Parameter`})
+        const {brandid,dealerid,r1, r2 , partnumber , locationid , flag, seasonalid, modelid, natureid} = req.body
+        if(!dealerid && !brandid){
+            return res.status(400).json({Error:`Dealerid and Brandid is a required Parameter`})
         }
-        const query = `use z_scope EXEC GetMAXData @dealerid , @r1, @r2, @partnumber, @locationid, @maxvalueflag ,@seasonalid,@natureid,@modelid;`
+        const query = `use z_scope EXEC GetMAXData @brandid, @dealerid , @r1, @r2, @partnumber, @locationid, @maxvalueflag ,@seasonalid,@natureid,@modelid;`
         if(!partnumber && !locationid){
             return res.status(400).json({Error:`partnumber or locationid is required`})
         }
          const request = pool.request();
         
         // Handle potential NULL values correctly
+        request.input('brandid',sql.Int,brandid)
         request.input('dealerid',sql.Int,dealerid)
         request.input('r1', sql.Int, r1 ?? null);
         request.input('r2', sql.Int, r2 ?? null);
@@ -35,10 +99,17 @@ try {
 const userFeedbacklog = async (req,res)=>{
  try {
     const pool = await getPool1()
-    const {partid , max , remarkid , customrem , proposedqty } = req.body
-    if(!partid || !max || !proposedqty || !remarkid){
+    const {brandid , dealerid , locationid,partid , max , remarkid, customrem  , proposedqty } = req.body
+    if(!brandid || !dealerid || !locationid || !partid || !max || proposedqty == null || !customrem || !remarkid){
         return res.status(400).json({Error:`All Fields are required`})
     }
+   const partCheck = await partBrandCheck(dealerid,locationid,partid)
+   if(!partCheck){
+        return res.status(400).json({Error:`PartID is Invalid`})
+   }
+    const dynamicTable = `[UAD_VON]..UAD_VON_SPMFeedback_${brandid}`
+    // console.log(dynamicTable);
+    
     let LatestPartID =null;
     try{
         const LatestPartQuery = `select (CASE WHEN pm.BrandID = sm.BrandID AND pm.PartNumber = sm.PartNumber THEN sm.SubPartNumber ELSE pm.PartNumber END) AS LatestPartNumber 
@@ -56,7 +127,7 @@ const userFeedbacklog = async (req,res)=>{
     try {
         const previousFBQuery = `
         SELECT TOP 1 FeedbackID 
-        FROM norms..UserFeedback 
+        FROM ${dynamicTable}
         WHERE PartID = @partid 
         ORDER BY FeedbackDate DESC
        `;
@@ -73,14 +144,17 @@ const userFeedbacklog = async (req,res)=>{
     }
    
     const query = `
-                   Insert into norms..UserFeedback (PartID , LatestPartID , MaxValue , UserID , UserFBRemarkID , CustomRem , ProposedQty , FeedbackDate , PreviousFBID)
-                   Values (@partid,@latestid,@max,1,@userfbid,@customrem,@proposedqty,GETDATE(),@previousfbid)`
+                   Insert into  ${dynamicTable} (brandid , dealerid , locationid , PartID , LatestPartID , MaxValue , UserID , UserFBRemarkID ,Customrem, ProposedQty , FeedbackDate , PreviousFBID)
+                   Values (@brandid,@dealerid , @locationid , @partid,@latestid,@max,1,@userfbid,@customrem,@proposedqty,GETDATE(),@previousfbid)`
      const request = await pool.request()
+     request.input('brandid',sql.TinyInt,brandid)            
+     request.input('dealerid',sql.Int,dealerid)            
+     request.input('locationid',sql.Int,locationid)            
      request.input('partid',sql.Int,partid)            
      request.input('latestid',sql.VarChar,LatestPartID)            
      request.input('max',sql.Int,max)            
-     request.input('userfbid',sql.Int,remarkid)            
-     request.input('customrem',sql.NVarChar,customrem)            
+     request.input('userfbid',sql.Int,remarkid)                      
+     request.input('customrem',sql.Int,customrem)                      
      request.input('proposedqty',sql.Int,proposedqty)            
      request.input('previousfbid',sql.Int,previousFBID)     
      
@@ -90,7 +164,76 @@ const userFeedbacklog = async (req,res)=>{
     res.status(500).json({Error:error.message})
  }
 }
-// const adminView = async(req,res)=>{
+const userViewLog = async(req,res)=>{
+try {
+        const pool = await getPool1()
+        const {brandid, dealerid , locationid , partid} = req.body
+        if(!brandid || !dealerid){
+            return res.status(400).json({message:`Brandid and Dealerid are required Parameter`})
+        }
+        if(!locationid && !partid){
+            return res.status(400).json({message:`Locationid or Partid anyone is required`})
+        }
+        const spmdynamicTable = `UAD_VON..UAD_VON_SPMFeedback_${brandid}`
+        const admindynamicTable = `UAD_VON..UAD_VON_AdminFeedback_${brandid}`
+    
+        const query = ` use [UAD_VON]
+        DECLARE @LocationID INT = ${locationid}  -- Set a value if filtering by location
+        DECLARE @PartID INT = ${partid}      -- Set a value if filtering by part
+        SELECT li.Location, pm.PartNumber, pm.PartDesc, pm.Category, pm.MRP, sf.MaxValue, rm.Remark as UserRemark, 
+        sf.Customrem, sf.ProposedQty, sf.FeedbackDate, af.AdminRemark,  af.ApprovedQty , af.AdminFBDate ,sf.Status
+        FROM ${spmdynamicTable} sf
+        JOIN z_scope..part_master pm 
+        ON pm.brandid = sf.Brandid AND pm.partid = sf.partid
+		LEFT JOIN ${admindynamicTable} af on af.FeedbackID = sf.FeedbackID
+        JOIN z_scope..locationinfo li 
+        ON li.LocationID = sf.Locationid
+        JOIN UAD_VON..UAD_VON_Remarksmaster rm 
+        ON rm.Remarkid = sf.UserFBRemarkID 
+        WHERE sf.Dealerid = 8
+        AND (
+            (@LocationID IS NOT NULL AND sf.locationid = @LocationID) 
+            OR 
+            (@PartID IS NOT NULL AND pm.partid = @PartID)
+        )
+        `
+        const result = await pool.request().query(query)
+        res.status(200).json({Data:result.recordset})
+} catch (error) {
+    res.status(500).json({Error:error.message,message:`Error in userViewLog`})
+}
+}
+const adminView = async(req,res)=>{
+    try {
+        const pool = await  getPool1()
+        const {brandid, dealerid, r1, r2 , partnumber , locationid , flag, seasonalid, modelid, natureid, status} = req.body
+        if(!brandid || !dealerid){
+            return res.status(400).json({Error:`Brandid and Dealerid are required Parameter`})
+        }
+        const query = `use z_scope EXEC GetMAXDataAdmin @brandid,@dealerid , @r1, @r2, @partnumber, @locationid, @maxvalueflag ,@seasonalid,@natureid,@modelid,@status;`
+        if(!partnumber && !locationid){
+            return res.status(400).json({Error:`partnumber or locationid is required`})
+        }
+         const request = pool.request();
+        
+        // Handle potential NULL values correctly
+        request.input('brandid',sql.Int,brandid)
+        request.input('dealerid',sql.Int,dealerid)
+        request.input('r1', sql.Int, r1 ?? null);
+        request.input('r2', sql.Int, r2 ?? null);
+        request.input('seasonalid', sql.Int, seasonalid ?? null);
+        request.input('natureid', sql.Int, natureid ?? null);
+        request.input('modelid', sql.Int, modelid ?? null);
+        request.input('partnumber', sql.VarChar, partnumber ?? null);
+        request.input('locationid', sql.Int, locationid ?? null);
+        request.input('maxvalueflag', sql.Bit, flag ?? null);
+        request.input('status', sql.Bit, status ?? null);
 
-// }
-export {viewMax,userFeedbacklog}
+        const result = await request.query(query);
+        
+        res.status(200).json({Data:result.recordset})
+} catch (error) {
+    res.status(500).json({Error:error.message})
+}
+}
+export {remarkMaster,userView,adminView,userFeedbacklog,userViewLog,newRemark,viewRemark}

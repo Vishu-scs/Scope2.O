@@ -49,7 +49,7 @@ const refreshSI = async(dealerid,reqid)=>{
       let Check =  isDataRefreshed(result.recordset[0])
 
       //Data Refresh Done Successfully
-      if(Check && Check === 'Success'){
+      if(Check){
          query = `use [UAD_BI] Update SBS_DBS_ScheduledDashboard set status = 3 where reqid = @reqid`
          await pool.request().input('reqid',sql.Int,reqid).query(query)
       }
@@ -218,7 +218,7 @@ const refreshTOPS = async(dealerid,reqid)=>{
 }
 
 function isDataRefreshed(result) {
-   if(result){
+   if(result || result.recordset === 'Success'){
       return  true;
    }
    else{
