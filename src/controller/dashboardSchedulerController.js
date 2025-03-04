@@ -96,9 +96,9 @@ const uploadSchedule = async (req, res) => {
         for (const dashboardcode of parsedDashboardCodes) {
 
         const isAlreadyScheduled = await checkisAlreadyScheduled(dashboardcode,brandid,dealerid)
-        //  console.log(`already scheduled: `,isAlreadyScheduled);
+         console.log(`already scheduled: `,isAlreadyScheduled);
          if(!isAlreadyScheduled){
-          return res.status(401).json({message:`Dashboard Already Scheduled`})
+          return res.status(200).json({message:`Dashboard Already Scheduled`})
          }
          if (dashboardcode == 15) {
           const isGroupSettingDone = await checkGroupSetting(dealerid) 

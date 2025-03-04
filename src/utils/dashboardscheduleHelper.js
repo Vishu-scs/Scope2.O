@@ -94,12 +94,12 @@ if (result.recordsets[1].length === 0) {
 const firstRecord = result.recordsets[1][0];
 const scheduledDate = new Date(firstRecord.ScheduledOn);
 // console.log(firstRecord);
-if ((firstRecord.Status === 5 || firstRecord.Status === 6) ) {
-    console.log("Status is 5 or 6 and scheduled date is earlier than allowed date. Scheduling allowed.");
+if ((firstRecord.Status === 5 || firstRecord.Status === 6 || firstRecord.Status === 2 || firstRecord.Status === 4) ) {
+    // console.log("Status is 5 or 6 and scheduled date is earlier than allowed date. Scheduling allowed.");
     return true;
 }
 if(firstRecord.Status === 0 ){
-  console.log("Scheduling not allowed.");
+  // console.log("Scheduling not allowed.");
 return false;
 }
 
