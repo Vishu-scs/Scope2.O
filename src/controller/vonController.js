@@ -209,7 +209,6 @@ try {
         // `
         const query = `
     USE [UAD_VON];
-
     SELECT 
         li.Brand, li.Dealer, li.Location, 
         pm.PartNumber, pm.PartDesc, pm.Category, pm.MRP, 
@@ -219,7 +218,10 @@ try {
             ELSE rm.Remark 
         END AS UserRemark,
         sf.ProposedQty, sf.FeedbackDate, 
-        rmm.Remark AS AdminRemark, af.Customrem, af.ApprovedQty, 
+         CASE 
+            WHEN rmm.Remark = 'Custom' THEN af.Customrem 
+            ELSE rmm.Remark 
+        END AS AdminRemark, af.ApprovedQty, 
         af.AdminFBDate, sf.Status
     FROM ${spmdynamicTable} sf
     JOIN z_scope..part_master pm 
@@ -289,9 +291,10 @@ const adminFeedbackLog = async (req,res)=>{
     try {
         const pool = await getPool1()
         const {brandid, dealerid ,locationid, feedbackid ,AdminRemark,customRem,ApprovedQty} = req.body
-        if(!brandid ||  !dealerid || !locationid || !feedbackid || !AdminRemark || !ApprovedQty){
-            return res.status(400).json({message:`All Fields are required`})
+        if((!brandid ||  !dealerid || !locationid || !AdminRemark || !ApprovedQty) || (feedbackid == null)){
+            return res.status(400).json({message:`All Fields are required and Feedbackid cannot be null`})
         }
+        
         const dynamicTable = `[UAD_VON]..UAD_VON_AdminFeedback_${brandid}`
         const userdynamicTable = `[UAD_VON]..UAD_VON_SPMFeedback_${brandid}`
         let PreviousAdminFBID = null;
@@ -333,8 +336,7 @@ const adminFeedbackLog = async (req,res)=>{
         request.input('approvedqty',sql.Int,ApprovedQty)            
         request.input('previousadminfbid',sql.Int,PreviousAdminFBID) 
         
-        await request.query(query)
-
+        const result = await request.query(query)
         try {
              query = `update ${userdynamicTable} set Status = 'Reviewed' where feedbackid = ${feedbackid} `
              await pool.request().query(query)
