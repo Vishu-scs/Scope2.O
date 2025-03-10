@@ -21,12 +21,20 @@ const newRemark = async(req,res)=>{
 try {
         const pool = await getPool1()
         const {remark,  brandid , addedby , usertype} = req.body
-        if(!remark || !brandid || !addedby || !usertype) {
+        if(!remark ||  !addedby || !usertype) {
             return res.status(400).json({message:`All fields are required`})
         }
         const query = ` use [UAD_VON]
-                        insert into UAD_VON_RemarksMaster (remark,brandid,addedby,usertype)
-                        values('${remark}',${brandid},${addedby},'${usertype}')`
+        INSERT INTO UAD_VON_RemarksMaster (remark, brandid, addedby, usertype)
+        SELECT 
+        '${remark}', 
+            COALESCE(${brandid}, bigid), 
+            ${addedby},
+            '${usertype}' 
+            FROM 
+                (SELECT DISTINCT bigid FROM z_scope..Brand_Master) AS brands
+            WHERE 
+                ${brandid} IS NULL OR bigid = ${brandid};`
           
           await pool.request().query(query)
           res.status(201).json({message:`Remark successfully Created`})
@@ -70,11 +78,11 @@ try {
 const userView = async(req,res)=>{
 try {
         const pool = await  getPool1()
-        const {brandid,dealerid,r1, r2 ,l1,l2, partnumber , locationid , flag, seasonalid, modelid, natureid} = req.body
+        const {brandid,dealerid,r1, r2 ,l1,l2, partnumber , locationid , flag, seasonalid, modelid, natureid,parttype} = req.body
         if(!dealerid && !brandid){
             return res.status(400).json({Error:`Dealerid and Brandid is a required Parameter`})
         }
-        const query = `use z_scope EXEC GetMAXData @brandid, @dealerid , @r1, @r2, @l1, @l2, @partnumber, @locationid, @maxvalueflag ,@seasonalid,@natureid,@modelid;`
+        const query = `use z_scope EXEC GetMAXData @brandid, @dealerid , @r1, @r2, @l1, @l2, @partnumber, @locationid, @maxvalueflag ,@seasonalid,@natureid,@modelid,@parttype;`
         if(!partnumber && !locationid){
             return res.status(400).json({Error:`partnumber or locationid is required`})
         }
@@ -93,6 +101,7 @@ try {
         request.input('partnumber', sql.VarChar, partnumber ?? null);
         request.input('locationid', sql.Int, locationid ?? null);
         request.input('maxvalueflag', sql.Bit, flag ?? null);
+        request.input('parttype', sql.Bit, parttype ?? null);
 
         const result = await request.query(query);
         

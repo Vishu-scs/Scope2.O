@@ -88,7 +88,16 @@ const model = async(req,res)=>{
         res.status(500).json({Error:error.message})
     }
     }
-
+const partType = async(req,res)=>{
+try {
+        const pool = await getPool1()
+        const query = `select parttypeid , Description from z_scope..parttypemaster`
+        const result = await pool.request().query(query)
+        res.status(200).json({Data:result.recordset})
+} catch (error) {
+    res.status(500).json({Error:error.message})
+}
+}
 // const getMAX = async (req, res) => {
 //     try {
 //         const pool = await getPool1(); // Ensure the connection is awaited
@@ -155,4 +164,4 @@ const model = async(req,res)=>{
 // };
 
 
-export {getBrands,getDealers,getLocation,getWorkspace,getDashboard,partNature,model,seasonal}
+export {getBrands,getDealers,getLocation,getWorkspace,getDashboard,partNature,model,seasonal,partType}
