@@ -58,9 +58,9 @@ return pending;
   }
 };
 const checkisAlreadyScheduled = async (dashboardcode, brandid, dealerid) => {
+  try {
   const pool = await getPool1();
-
-  const query = `
+    const query = `
     use [UAD_BI] 
     SELECT scheduledon 
     FROM SBS_DBS_ScheduledDashboard  
@@ -74,7 +74,6 @@ const checkisAlreadyScheduled = async (dashboardcode, brandid, dealerid) => {
       AND brandid = @brandid;
   `;
 
-  try {
     const result = await pool.request()
       .input('dashboardcode', sql.Int, dashboardcode)
       .input('brandid', sql.Int, brandid)
@@ -102,12 +101,34 @@ if(firstRecord.Status === 0 ){
   // console.log("Scheduling not allowed.");
 return false;
 }
-
   } catch (error) {
     console.error('Error in checkisAlreadyScheduled:', error.message);
     throw error;
   }
 };
+// const checkisAlreadyScheduled = async(dashboardcode, brandid, dealerid,scheduledon)=>{
+//   console.log(`hi2`);
+  
+//   const pool = await getPool1()
+//   const query = `use [UAD_BI]
+//     SELECT 
+//     CASE WHEN DATEDIFF(MONTH, scheduledon, ${scheduledon}) = 1 and status in (5, 6)THEN 'Yes' ELSE 'No' END AS Result
+//     FROM SBS_DBS_ScheduledDashboard 
+//    WHERE dashboardcode = ${dashboardcode} AND dealerid = ${dealerid} AND brandid = ${brandid};`
+   
+//    const result = await pool.request().query(query)
+//    console.log(`hi3`);
+//    console.log(result);
+//    const abc = result.recordset.result
+//    console.log(result.recordset);
+   
+//    if(abc == "No"){
+//     return true
+//    }
+//    else{
+//     return false
+//    }
+// }
 // Checking User is Authorised to Perform Actions or not 
 const checkisUserValid = async(addedby)=>{
   const pool = await getPool1()

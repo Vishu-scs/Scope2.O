@@ -76,7 +76,6 @@ const seasonal = async(req,res)=>{
         res.status(500).json({Error:error.message})
     }
     }
-
 const model = async(req,res)=>{
     try {
          const pool = await getPool1()

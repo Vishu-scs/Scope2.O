@@ -27,111 +27,221 @@ if(error.message=== `Invalid object name'DB_DashboardMaster'.`){
   res.status(500).json({details:error.message})
 }
 }
-const uploadSchedule = async (req, res) => {
-    const pool = getPool1();
-    try {
-      const {dashboardcodes, brandid, brand, dealer, dealerid, scheduledon, addedby } = req.body;
+// const uploadSchedule = async (req, res) => {
+//     const pool = getPool1();
+//     try {
+//       const {dashboardcodes, brandid, brand, dealer, dealerid, scheduledon, addedby } = req.body;
 
-       // Validate other required fields
-       if (!brandid || !brand || !dealer || !dealerid || !scheduledon || !dashboardcodes) {
-        return res.status(400).json({ error: "All fields are required." });
-      }
-      if(!addedby){
-        res.status(400).send(`Userid is Required`)
-      }
-        // Checking User is Authorised to Perform Actions or not 
-          const isUserValid = await checkisUserValid(addedby)
+//        // Validate other required fields
+//        if (!brandid || !brand || !dealer || !dealerid || !scheduledon || !dashboardcodes) {
+//         return res.status(400).json({ error: "All fields are required." });
+//       }
+//       if(!addedby){
+//         res.status(400).send(`Userid is Required`)
+//       }
+//         // Checking User is Authorised to Perform Actions or not 
+//           const isUserValid = await checkisUserValid(addedby)
 
-      // Validate dashboardcodes as an array
-      if (isUserValid) {
-        let parsedDashboardCodes;
-        try {
-          parsedDashboardCodes = JSON.parse(JSON.stringify(dashboardcodes)); // Ensure it's a proper array
-          if (!Array.isArray(parsedDashboardCodes) || parsedDashboardCodes.length === 0) {
-            throw new Error("Invalid dashboardcodes format.");
-          }
-        } catch (err) {
-          return res.status(400).json({ error: "Invalid or missing dashboardcodes. It must be a JSON array." });
-        }
+//       // Validate dashboardcodes as an array
+//       if (isUserValid) {
+//         let parsedDashboardCodes;
+//         try {
+//           parsedDashboardCodes = JSON.parse(JSON.stringify(dashboardcodes)); // Ensure it's a proper array
+//           if (!Array.isArray(parsedDashboardCodes) || parsedDashboardCodes.length === 0) {
+//             throw new Error("Invalid dashboardcodes format.");
+//           }
+//         } catch (err) {
+//           return res.status(400).json({ error: "Invalid or missing dashboardcodes. It must be a JSON array." });
+//         }
     
-        // Parse and validate the `scheduledon` field
-        const scheduledDate = new Date(scheduledon);
-        if (isNaN(scheduledDate.getTime())) {
-          return res.status(400).json({ error: "Invalid date format for 'scheduledon'." });
-        }
-      // console.log("scheduledDate: ",scheduledDate);
+//         // Parse and validate the `scheduledon` field
+//         const scheduledDate = new Date(scheduledon);
+//         if (isNaN(scheduledDate.getTime())) {
+//           return res.status(400).json({ error: "Invalid date format for 'scheduledon'." });
+//         }
+//       // console.log("scheduledDate: ",scheduledDate);
       
-        // Check if the date is at least 24 hours in the future
-        // const currentDate = new Date();
-        // const futureThreshold = new Date(currentDate.getTime() + 24 * 60 * 60 * 1000); // 24 hours from now
-        // if (scheduledDate <= futureThreshold) {
-        //   return res.status(400).json({
-        //     message: "Scheduled Date cannot be today's date",
-        //   });
-        // }
-        const currentDate = new Date();
-        // console.log("currentDate ",currentDate);
+//         // Check if the date is at least 24 hours in the future
+//         // const currentDate = new Date();
+//         // const futureThreshold = new Date(currentDate.getTime() + 24 * 60 * 60 * 1000); // 24 hours from now
+//         // if (scheduledDate <= futureThreshold) {
+//         //   return res.status(400).json({
+//         //     message: "Scheduled Date cannot be today's date",
+//         //   });
+//         // }
+//         const currentDate = new Date();
+//         // console.log("currentDate ",currentDate);
         
 
-        // Move to the next day at 00:00:00 (midnight)
-        const nextDayStart = new Date(currentDate);
-        nextDayStart.setDate(nextDayStart.getDate() + 1);
-        nextDayStart.setHours(0, 0, 0, 0); // Set time to midnight
-        // console.log("nextDayStart ",nextDayStart);
+//         // Move to the next day at 00:00:00 (midnight)
+//         const nextDayStart = new Date(currentDate);
+//         nextDayStart.setDate(nextDayStart.getDate() + 1);
+//         nextDayStart.setHours(0, 0, 0, 0); // Set time to midnight
+//         // console.log("nextDayStart ",nextDayStart);
         
-        if (scheduledDate < nextDayStart) {
-          return res.status(400).json({
-            Error: "Scheduled date must be on the next day or later.",
-          });
-        }
+//         if (scheduledDate < nextDayStart) {
+//           return res.status(400).json({
+//             Error: "Scheduled date must be on the next day or later.",
+//           });
+//         }
 
-        // Validate dealer data
-        const isDataValid = await dataValidator(dealerid);
-        // console.log(`isDataUploaded: `,isDataValid);
-        if(typeof(isDataValid)==="object"){
-          return res.status(400).json(isDataValid);
-        }
-    
-        // Insert each dashboardcode into the database
-        for (const dashboardcode of parsedDashboardCodes) {
-
-        const isAlreadyScheduled = await checkisAlreadyScheduled(dashboardcode,brandid,dealerid)
-         console.log(`already scheduled: `,isAlreadyScheduled);
-         if(!isAlreadyScheduled){
-          return res.status(200).json({message:`Dashboard Already Scheduled`})
-         }
-         if (dashboardcode == 15) {
-          const isGroupSettingDone = await checkGroupSetting(dealerid) 
-            // console.log(isGroupSettingDone);
+//         // Validate dealer data
+//         const isDataValid = await dataValidator(dealerid);
+//         // console.log(`isDataUploaded: `,isDataValid);
+//         if(typeof(isDataValid)==="object"){
+//           return res.status(400).json(isDataValid);
+//         }
+//       console.log(`hi`);
+      
+//         // Insert each dashboardcode into the database
+//         for (const dashboardcode of parsedDashboardCodes) {
+//           console.log(`hi1`);
+//         const isAlreadyScheduled = await checkisAlreadyScheduled(dashboardcode,brandid,dealerid)
+//          console.log(`already scheduled: `,isAlreadyScheduled);
+//          if(isAlreadyScheduled){
+//           return res.status(200).json({message:`Dashboard Already Scheduled`})
+//          }
+//          if (dashboardcode == 15) {
+//           const isGroupSettingDone = await checkGroupSetting(dealerid) 
+//             // console.log(isGroupSettingDone);
      
-           if(!isGroupSettingDone){
-           return res.status(400).json({message:`Group Setting Not done`})
-         }
-    }
-        const query = ` use [UAD_BI]
-            INSERT INTO SBS_DBS_ScheduledDashboard (Dashboardcode, Brandid, Brand, Dealerid, Dealer, Scheduledon, Addedby, Addedon)
-            VALUES (@dashboardcode, @brandid, @brand, @dealerid, @dealer, @scheduledon, @addedby, GETDATE());`;
-          await pool.request()
-            .input("dashboardcode", sql.Int, dashboardcode)  // Unique input for each iteration
-            .input("brand", sql.VarChar, brand)
-            .input("brandid", sql.Int, brandid)
-            .input("dealer", sql.VarChar, dealer)
-            .input("dealerid", sql.Int, dealerid)
-            .input("scheduledon", sql.DateTime, scheduledon)
-            .input("addedby", sql.Int, addedby)
-            .query(query);
-        }
+//            if(!isGroupSettingDone){
+//            return res.status(400).json({message:`Group Setting Not done`})
+//          }
+//     }
+//         // const query = ` use [UAD_BI]
+//         //     INSERT INTO SBS_DBS_ScheduledDashboard (Dashboardcode, Brandid, Brand, Dealerid, Dealer, Scheduledon, Addedby, Addedon)
+//         //     VALUES (@dashboardcode, @brandid, @brand, @dealerid, @dealer, @scheduledon, @addedby, GETDATE());`;
+//           await pool.request()
+//             .input("dashboardcode", sql.Int, dashboardcode)  // Unique input for each iteration
+//             .input("brand", sql.VarChar, brand)
+//             .input("brandid", sql.Int, brandid)
+//             .input("dealer", sql.VarChar, dealer)
+//             .input("dealerid", sql.Int, dealerid)
+//             .input("scheduledon", sql.DateTime, scheduledon)
+//             .input("addedby", sql.Int, addedby)
+//             .query(query);
+//         }
     
-        // console.log("Dashboard successfully uploaded.");
-        res.status(201).json({ message: "Dashboard Successfully Scheduled" });
-      }
-      else{
-        res.status(401).json({message:'You are not Authorised to Schedule any Dashboard'})
-      }
-    } catch (error) {
-      console.error("Error uploading schedules:", error.message);
-      res.status(500).json({ message: error.message });
+//         // console.log("Dashboard successfully uploaded.");
+//         res.status(201).json({ message: "Dashboard Successfully Scheduled" });
+//       }
+//       else{
+//         res.status(401).json({message:'You are not Authorised to Schedule any Dashboard'})
+//       }
+//     } catch (error) {
+//       console.error("Error uploading schedules:", error.message);
+//       res.status(500).json({ message: error.message });
+//     }
+// };
+const uploadSchedule = async (req, res) => {
+  const pool =await  getPool1();
+  try {
+    const {dashboardcodes, brandid, brand, dealer, dealerid, scheduledon, addedby } = req.body;    
+     // Validate other required fields
+     if (!brandid || !brand || !dealer || !dealerid || !scheduledon || !dashboardcodes) {
+       console.log(`all fields are required`);
+      return res.status(400).json({ error: "All fields are required." });
+      
     }
+    if(!addedby){
+      console.log(`Userid is required`);
+      
+     return res.status(400).send(`Userid is Required`)
+    }
+      // Checking User is Authorised to Perform Actions or not 
+        const isUserValid = await checkisUserValid(addedby)
+
+    // Validate dashboardcodes as an array
+    if (isUserValid) {
+      let parsedDashboardCodes;
+      try {
+        parsedDashboardCodes = JSON.parse(JSON.stringify(dashboardcodes)); // Ensure it's a proper array
+        if (!Array.isArray(parsedDashboardCodes) || parsedDashboardCodes.length === 0) {
+          throw new Error("Invalid dashboardcodes format.");
+        }
+      } catch (err) {
+        return res.status(400).json({ error: "Invalid or missing dashboardcodes. It must be a JSON array." });
+      }
+  
+      // Parse and validate the `scheduledon` field
+      const scheduledDate = new Date(scheduledon);
+      if (isNaN(scheduledDate.getTime())) {
+        return res.status(400).json({ error: "Invalid date format for 'scheduledon'." });
+      }
+    // console.log("scheduledDate: ",scheduledDate);
+    
+      // Check if the date is at least 24 hours in the future
+      // const currentDate = new Date();
+      // const futureThreshold = new Date(currentDate.getTime() + 24 * 60 * 60 * 1000); // 24 hours from now
+      // if (scheduledDate <= futureThreshold) {
+      //   return res.status(400).json({
+      //     message: "Scheduled Date cannot be today's date",
+      //   });
+      // }
+      const currentDate = new Date();
+      // console.log("currentDate ",currentDate);
+      
+
+      // Move to the next day at 00:00:00 (midnight)
+      const nextDayStart = new Date(currentDate);
+      nextDayStart.setDate(nextDayStart.getDate() + 1);
+      nextDayStart.setHours(0, 0, 0, 0); // Set time to midnight
+      // console.log("nextDayStart ",nextDayStart);
+      
+      if (scheduledDate < nextDayStart) {
+        return res.status(400).json({
+          Error: "Scheduled date must be on the next day or later.",
+        });
+      }
+
+      // Validate dealer data
+      const isDataValid = await dataValidator(dealerid);
+      // console.log(`isDataUploaded: `,isDataValid);
+      if(typeof(isDataValid)==="object"){
+        return res.status(400).json(isDataValid);
+      }
+  
+      // Insert each dashboardcode into the database
+      for (const dashboardcode of parsedDashboardCodes) {
+
+      const isAlreadyScheduled = await checkisAlreadyScheduled(dashboardcode,brandid,dealerid)
+       console.log(`already scheduled: `,isAlreadyScheduled);
+       if(!isAlreadyScheduled){
+        return res.status(400).json({message:`Dashboard Already Scheduled`})
+       }
+       if (dashboardcode == 15) {
+        const isGroupSettingDone = await checkGroupSetting(dealerid) 
+          // console.log(isGroupSettingDone);
+   
+         if(!isGroupSettingDone){
+         return res.status(400).json({message:`Group Setting Not done`})
+       }
+  }
+      const query = ` use [UAD_BI]
+          INSERT INTO SBS_DBS_ScheduledDashboard (Dashboardcode, Brandid, Brand, Dealerid, Dealer, Scheduledon, Addedby, Addedon)
+          VALUES (@dashboardcode, @brandid, @brand, @dealerid, @dealer, @scheduledon, @addedby, GETDATE());`;
+        await pool.request()
+          .input("dashboardcode", sql.Int, dashboardcode)  // Unique input for each iteration
+          .input("brand", sql.VarChar, brand)
+          .input("brandid", sql.Int, brandid)
+          .input("dealer", sql.VarChar, dealer)
+          .input("dealerid", sql.Int, dealerid)
+          .input("scheduledon", sql.DateTime, scheduledon)
+          .input("addedby", sql.Int, addedby)
+          .query(query);
+      }
+  
+      // console.log("Dashboard successfully uploaded.");
+      res.status(201).json({ message: "Dashboard Successfully Scheduled" });
+    }
+    else{
+      res.status(401).json({message:'You are not Authorised to Schedule any Dashboard'})
+    }
+  } catch (error) {
+    console.error("Error uploading schedules:", error.message);
+    res.status(500).json({ message: error.message });
+  }
 };
 const getBDM = async(req,res)=>{
   const pool = await getPool1()

@@ -83,6 +83,7 @@ try {
             return res.status(400).json({Error:`Dealerid and Brandid is a required Parameter`})
         }
         const query = `use z_scope EXEC GetMAXData @brandid, @dealerid , @r1, @r2, @l1, @l2, @partnumber, @locationid, @maxvalueflag ,@seasonalid,@natureid,@modelid,@parttype;`
+        
         if(!partnumber && !locationid){
             return res.status(400).json({Error:`partnumber or locationid is required`})
         }
@@ -100,10 +101,11 @@ try {
         request.input('modelid', sql.Int, modelid ?? null);
         request.input('partnumber', sql.VarChar, partnumber ?? null);
         request.input('locationid', sql.Int, locationid ?? null);
-        request.input('maxvalueflag', sql.Bit, flag ?? null);
-        request.input('parttype', sql.Bit, parttype ?? null);
+        request.input('maxvalueflag', sql.Int, flag ?? null);
+        request.input('parttype', sql.Int, parttype ?? null);
 
         const result = await request.query(query);
+        // console.log(result.recordset[0]);
         
         res.status(200).json({Data:result.recordset})
 } catch (error) {
@@ -264,11 +266,11 @@ const result = await request.query(query);
 const adminView = async(req,res)=>{
     try {
         const pool = await  getPool1()
-        const {brandid, dealerid, r1, r2 ,l1,l2, partnumber , locationid , flag, seasonalid, modelid, natureid, status} = req.body
+        const {brandid, dealerid, r1, r2 ,l1,l2, partnumber , locationid , flag, seasonalid, modelid, natureid, status,parttype} = req.body
         if(!brandid || !dealerid){
             return res.status(400).json({Error:`Brandid and Dealerid are required Parameter`})
         }
-        const query = `use z_scope EXEC GetMAXDataAdmin @brandid,@dealerid , @r1, @r2,@l1, @l2, @partnumber, @locationid, @maxvalueflag ,@seasonalid,@natureid,@modelid,@status;`
+        const query = `use z_scope EXEC GetMAXDataAdmin @brandid,@dealerid , @r1, @r2,@l1, @l2, @partnumber, @locationid, @maxvalueflag ,@seasonalid,@natureid,@modelid,@status,@parttype;`
         if(!partnumber && !locationid){
             return res.status(400).json({Error:`partnumber or locationid is required`})
         }
@@ -288,6 +290,7 @@ const adminView = async(req,res)=>{
         request.input('locationid', sql.Int, locationid ?? null);
         request.input('maxvalueflag', sql.Bit, flag ?? null);
         request.input('status', sql.Bit, status ?? null);
+        request.input('parttype', sql.Bit, parttype ?? null);
 
         const result = await request.query(query);
         
@@ -359,4 +362,18 @@ const adminFeedbackLog = async (req,res)=>{
     }
                 
 }
-export {remarkMaster,userView,adminView,userFeedbacklog,viewLog,newRemark,viewRemark,adminFeedbackLog}
+const partFamily = async (req,res)=>{
+try {
+        const pool = await getPool1()
+        const {partnumber} = req.body
+        const query = `use [z_scope] 
+                        select pm.partnumber1, (CASE WHEN pm.BrandID = sm.BrandID AND pm.PartNumber = sm.PartNumber THEN sm.SubPartNumber ELSE pm.PartNumber END)as LatestPartNumber , pm.partdesc, pm.category,pm.landedcost from substitution_master sm 
+                        join part_master pm on pm.brandid = sm.brandid and pm.partnumber1 = sm.partnumber1
+                        where sm.subpartnumber = (select distinct subpartnumber1 from substitution_master where partnumber1 = '${partnumber}')`
+        const result = await pool.request().query(query)
+        res.status(200).json({Data:result.recordset})
+} catch (error) {
+    res.status(500).json({Error:error.message})
+}
+}
+export {remarkMaster,userView,adminView,userFeedbacklog,viewLog,newRemark,viewRemark,adminFeedbackLog,partFamily}

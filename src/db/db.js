@@ -21,7 +21,7 @@ const connectDB = async()=>{
 pool = await new sql.connect(config1)
 // .connect()
 .then(pool => {
-    console.log('Connected to Live SQL Server');
+    console.log('Connected to UAT SQL Server');
     return pool;
 })
 .catch(err => {
