@@ -366,11 +366,18 @@ const partFamily = async (req,res)=>{
 try {
         const pool = await getPool1()
         const {partnumber} = req.body
+        if(!partnumber){
+            return res.status(400).json({Error:`partnumber is required`})
+        }
+        // console.log(partnumber);
+        
         const query = `use [z_scope] 
                         select pm.partnumber1, (CASE WHEN pm.BrandID = sm.BrandID AND pm.PartNumber = sm.PartNumber THEN sm.SubPartNumber ELSE pm.PartNumber END)as LatestPartNumber , pm.partdesc, pm.category,pm.landedcost from substitution_master sm 
                         join part_master pm on pm.brandid = sm.brandid and pm.partnumber1 = sm.partnumber1
-                        where sm.subpartnumber = (select distinct subpartnumber1 from substitution_master where partnumber1 = '${partnumber}')`
-        const result = await pool.request().query(query)
+                        where sm.subpartnumber = (select distinct subpartnumber1 from substitution_master where partnumber1 = @partnumber)`
+        const result = await pool.request().input('partnumber',sql.VarChar,partnumber).query(query)
+        // console.log(result.recordset);
+        
         res.status(200).json({Data:result.recordset})
 } catch (error) {
     res.status(500).json({Error:error.message})
