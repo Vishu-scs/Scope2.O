@@ -288,7 +288,7 @@ const adminView = async(req,res)=>{
         request.input('modelid', sql.Int, modelid ?? null);
         request.input('partnumber', sql.VarChar, partnumber ?? null);
         request.input('locationid', sql.Int, locationid ?? null);
-        request.input('maxvalueflag', sql.Bit, flag ?? null);
+        request.input('maxvalueflag', sql.Int, flag ?? null);
         request.input('status', sql.Bit, status ?? null);
         request.input('parttype', sql.Bit, parttype ?? null);
 
