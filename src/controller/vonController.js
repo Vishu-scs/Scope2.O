@@ -5,6 +5,7 @@ import { partBrandCheck } from '../utils/vonHelper.js'
 
 const remarkMaster = async (req,res)=>{
 try {
+    
         const pool = await getPool1()
         const {brandid,usertype} = req.body
         if(!brandid || !usertype){
