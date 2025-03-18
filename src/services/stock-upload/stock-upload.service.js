@@ -16,7 +16,7 @@ const stockUploadSingleLocation = async (req, res) => {
   let locationId = req.body.location_id;
   let addedBy = req.body.user_id;
   let rowData;
-  let getDealerAndLocationQuery = `select dealerId,brandId from locationInfo where locationId=@locationId`;
+  let getDealerAndLocationQuery = `use [z_scope] select dealerId,brandId from locationInfo where locationId=@locationId`;
 
   const result23 = await pool
     .request()
@@ -26,7 +26,7 @@ const stockUploadSingleLocation = async (req, res) => {
   let brandId = result23.recordset[0].brandId;
   let dealerId = result23.recordset[0].dealerId;
 
-  let getMappingQuery = `select part_number,stock_qty,loc,stock_type from stock_upload_mapping where brand_id=@brandId and stock_type='current'`;
+  let getMappingQuery = `use [StockUpload] select part_number,stock_qty,loc,stock_type from stock_upload_mapping where brand_id=@brandId and stock_type='current'`;
 
   const mappingResult = await pool
     .request()
@@ -87,7 +87,7 @@ const stockUploadSingleLocation = async (req, res) => {
 
   //   console.log("filtered data without null",filteredRowData.length)
 
-  let partMasterQuery = `select partnumber1 ,partID from part_master where brandId=@brandId`;
+  let partMasterQuery = `use [z_scope] select partnumber1 ,partID from part_master where brandId=@brandId`;
 
   const result = await pool
     .request()
@@ -97,19 +97,19 @@ const stockUploadSingleLocation = async (req, res) => {
 
   let partNotInMasterArray = [];
   //   console.log(partMasterResult)
-  const getPartNumberQuery = `select partnumber from part_not_in_master where brand_id=@brandId`;
+  const getPartNumberQuery = `use [StockUpload] select partnumber from part_not_in_master where brand_id=@brandId`;
   let res123 = await pool
     .request()
     .input("brandId", brandId)
     .query(getPartNumberQuery);
   partNotInMasterArray = res123.recordset;
 
-  let deletePartMasterQuery = `delete from part_not_in_master where brand_id=@brandId`;
+  let deletePartMasterQuery = `use [StockUpload] delete from part_not_in_master where brand_id=@brandId`;
   await pool.request().input("brandId", brandId).query(deletePartMasterQuery);
 
   let updatedFilteredRowData = [];
 
-  let query12=`Select tcode from currentStock1 where locationId=@locationId`;
+  let query12=`use [StockUpload] Select tcode from currentStock1 where locationId=@locationId`;
   const res45=await pool.request().input('locationId',locationId).query(query12);
  let  StockCode=res45?.recordset[0]?.tcode;
   let countPrevRecords=0;
@@ -118,7 +118,7 @@ const stockUploadSingleLocation = async (req, res) => {
   let quantitySumPrev = 0;
   if(res45.recordset.length>0){
 
-      let insertedDataQuery = `Select partNumber,partID,qty from currentStock2 where Stockcode=@StockCode`;
+      let insertedDataQuery = `use [StockUpload] Select partNumber,partID,qty from currentStock2 where Stockcode=@StockCode`;
     
       let result56 = await pool
         .request()
@@ -130,7 +130,7 @@ const stockUploadSingleLocation = async (req, res) => {
       if (insertedDataResult.length != 0) {
         // console.log("countRecords inserted ",countPrevRecords)
         // StockCode = insertedDataResult[0].StockCode;
-        let quanitySumQuery = `Select sum(qty) as QuantSum from currentStock2 where StockCode=@StockCode`;
+        let quanitySumQuery = `use [StockUpload] Select sum(qty) as QuantSum from currentStock2 where StockCode=@StockCode`;
     
         let result567 = await pool
           .request()
@@ -140,13 +140,13 @@ const stockUploadSingleLocation = async (req, res) => {
         if (result567.recordset.length != 0) {
           quantitySumPrev = result567.recordset[0].QuantSum;
           // console.log("quant sum prev ",quantitySumPrev);
-          let deleteQuery = `delete from currentStock2  where StockCode=@stockCode`;
+          let deleteQuery = `use [StockUpload] delete from currentStock2  where StockCode=@stockCode`;
           await pool
             .request()
             .input("stockCode", insertedDataResult[0].StockCode)
             .query(deleteQuery);
     
-          let deleteQuery1 = `delete from currentStock1  where tcode=@stockCode`;
+          let deleteQuery1 = `use [StockUpload] delete from currentStock1  where tcode=@stockCode`;
           await pool
             .request()
             .input("stockCode", insertedDataResult[0].StockCode)
@@ -155,12 +155,12 @@ const stockUploadSingleLocation = async (req, res) => {
     
        
       }
-      let deleteCodeQuery=`delete from currentStock1 where tcode=@stockCode`;
+      let deleteCodeQuery=`use [StockUpload] delete from currentStock1 where tcode=@stockCode`;
       await pool
         .request()
         .input("StockCode", StockCode)
         .query(deleteCodeQuery);
-      let deleteStockQuery=`delete from currentStock2 where stockcode=@stockCode`;
+      let deleteStockQuery=`use [StockUpload] delete from currentStock2 where stockcode=@stockCode`;
       let result569 = await pool
         .request()
         .input("StockCode", StockCode)
@@ -295,7 +295,7 @@ const stockUploadSingleLocation = async (req, res) => {
   }
   
     rowCount = updatedFilteredRowData?.length;
-    let insertQueryForCurrentStock1 = `insert into currentStock1(locationID,stockdate,addedby) output inserted.tcode values(@locationID,@formattedDate,@addedBy)`;
+    let insertQueryForCurrentStock1 = `use [StockUpload] insert into currentStock1(locationID,stockdate,addedby) output inserted.tcode values(@locationID,@formattedDate,@addedBy)`;
   
     const result1 = await pool
       .request()
@@ -324,6 +324,7 @@ const stockUploadSingleLocation = async (req, res) => {
     ];
   });
   try {
+    await pool.request().query('use stockupload')
     const table = new sql.Table("part_not_in_master"); // Updated table name
     table.create = false;
 
@@ -353,6 +354,7 @@ const stockUploadSingleLocation = async (req, res) => {
   });
 
   try {
+    await pool.request().query('use stockupload')
     const table1 = new sql.Table("currentStock2"); // Updated table name
     table1.create = false;
 
@@ -374,7 +376,7 @@ const stockUploadSingleLocation = async (req, res) => {
     console.error("Error during bulk insert in single upload: ", error);
     return error; // Rethrow the error for further handling if necessary
   }
-  let currentCountQuery = `select sum(qty) as currentQuantSum from currentStock2 where stockCode=@StockCode`;
+  let currentCountQuery = `use [StockUpload] select sum(qty) as currentQuantSum from currentStock2 where stockCode=@StockCode`;
   let result678 = await pool
     .request()
     .input("StockCode", StockCode)
@@ -384,7 +386,7 @@ const stockUploadSingleLocation = async (req, res) => {
     currentQuantSum = result678.recordset[0].currentQuantSum;
   }
 
-  let logQuery = `insert into Stock_Upload_Logs(location_id,stockCode,added_by,brand_id, stockUploadCount,operation_type,quantitySum,
+  let logQuery = `use [StockUpload] insert into Stock_Upload_Logs(location_id,stockCode,added_by,brand_id, stockUploadCount,operation_type,quantitySum,
       prevStockUploadCount,prevQuantitySum) values(@locationId,@StockCode,@addedBy,@brandId,@rowCount,'single-location upload stock',@currentQuantSum,@countPrevRecords,@quantitySumPrev)`;
   await pool
     .request()
@@ -412,14 +414,14 @@ const getPartNotInMasterSingleLocationInService = async (req, res) => {
 
     let locationId = req.location_id;
 
-    let getBrandQuery = `Select brandId from locationInfo where locationId=@locationId`;
+    let getBrandQuery = `use [z_scope] Select brandId from locationInfo where locationId=@locationId`;
     const result = await pool
       .request()
       .input("locationId", locationId)
       .query(getBrandQuery);
     let brandId = result.recordset[0].brandId;
     // console.log(brandId);
-    let getQuery = `Select partnumber from part_not_in_master where brand_id=@brandId`;
+    let getQuery = `use [StockUpload] Select partnumber from part_not_in_master where brand_id=@brandId`;
     const result1 = await pool
       .request()
       .input("brandId", brandId)
@@ -437,7 +439,7 @@ const getAllRecordsSingleLocation = async (req, res) => {
     const pool = await getPool1();
     let locationId = req.location_id;
     let userId=req.added_by;
-    let getQuery = `select added_on,added_by,stockUploadCount,quantitySum,prevQuantitySum,prevStockUploadCount from stock_upload_logs where location_id=@locationId and added_by=@userId`;
+    let getQuery = `use [StockUpload] select added_on,added_by,stockUploadCount,quantitySum,prevQuantitySum,prevStockUploadCount from stock_upload_logs where location_id=@locationId and added_by=@userId`;
 
     const result = await pool
       .request()
@@ -460,7 +462,7 @@ const getUploadedDataSingleLocationInService = async (req, res) => {
   try {
     const pool = await getPool1();
     let locationId = req.location_id;
-    let getQuery = `select ck2.partnumber,ck2.qty from currentStock2 ck2 join 
+    let getQuery = `use [StockUpload] select ck2.partnumber,ck2.qty from currentStock2 ck2 join 
         currentStock1 ck1 on ck1.tcode=ck2.StockCode where locationId=@locationId`;
 
     const result = await pool
@@ -495,14 +497,14 @@ const stockUploadMultiLocation = async (req, res) => {
     const pool=await getPool1();
     let addedBy = parseInt(req.body.user_id);
 
-    let brandQuery = `select brandId,brand from locationInfo where dealerID=@dealerId`;
+    let brandQuery = `use [z_scope] select brandId,brand from locationInfo where dealerID=@dealerId`;
     let brandRes = await pool
       .request()
       .input("dealerId", dealerId)
       .query(brandQuery);
     let brandId = brandRes.recordset[0].brandId;
     // console.log("brandid in stock upload multi location ",brandId)
-    let getMappingQuery = `select part_number,stock_qty,loc,stock_type from stock_upload_mapping where brand_id=@brandId and stock_type='current'`;
+    let getMappingQuery = `use [StockUpload] select part_number,stock_qty,loc,stock_type from stock_upload_mapping where brand_id=@brandId and stock_type='current'`;
 
     const mappingResult = await pool
       .request()
@@ -515,7 +517,7 @@ const stockUploadMultiLocation = async (req, res) => {
 
     let mappedData = mappingResult.recordset[0];
     // console.log("mapped data in stock upload multi location ",mappedData);
-    let partMasterQuery = `select partnumber1 ,partID from part_master where brandId=@brandId`;
+    let partMasterQuery = `use [StockUpload] select partnumber1 ,partID from part_master where brandId=@brandId`;
 
     const result = await pool
       .request()
@@ -524,7 +526,7 @@ const stockUploadMultiLocation = async (req, res) => {
     let partMasterResult = result.recordset;
     // console.log(" part master result in stock upload multi location ",partMasterResult)
     let partNotInMasterArray = [];
-    const getPartNumberQuery = `select partnumber as partnumber from part_not_in_master where brand_id=@brandId`;
+    const getPartNumberQuery = `use [StockUpload] select partnumber as partnumber from part_not_in_master where brand_id=@brandId`;
     let res123 = await pool
       .request()
       .input("brandId", brandId)
@@ -532,7 +534,7 @@ const stockUploadMultiLocation = async (req, res) => {
     partNotInMasterArray = res123.recordset;
 //    console.log("part not in master in stock upload multi loc ",partNotInMasterArray)
 
-    let deletePartMasterQuery = `delete from part_not_in_master where brand_id=@brandId`;
+    let deletePartMasterQuery = `use [StockUpload] delete from part_not_in_master where brand_id=@brandId`;
     await pool.request().input("brandId", brandId).query(deletePartMasterQuery);
 
   
@@ -564,7 +566,7 @@ const stockUploadMultiLocation = async (req, res) => {
         status: rowData1["status"],
       }));
 
-      let query12=`Select tcode from currentStock1 where locationId=@locationId`;
+      let query12=`use [StockUpload] Select tcode from currentStock1 where locationId=@locationId`;
   const res45=await pool.request().input('locationId',locationId).query(query12);
  let  StockCode=res45?.recordset[0]?.tcode;
   let countPrevRecords=0;
@@ -572,7 +574,7 @@ const stockUploadMultiLocation = async (req, res) => {
 // console.log("tcode ",StockCode,locationId)
   if(res45.recordset.length>0){
 
-      let insertedDataQuery = `Select partNumber,partID,qty from currentStock2 where Stockcode=@StockCode`;
+      let insertedDataQuery = `use [StockUpload] Select partNumber,partID,qty from currentStock2 where Stockcode=@StockCode`;
     
       let result56 = await pool
         .request()
@@ -581,12 +583,12 @@ const stockUploadMultiLocation = async (req, res) => {
        insertedDataResult = result56.recordset;
       countPrevRecords = insertedDataResult.length;
      
-      let deleteCodeQuery=`delete from currentStock1 where tcode=@stockCode`;
+      let deleteCodeQuery=`use [StockUpload] delete from currentStock1 where tcode=@stockCode`;
       await pool
         .request()
         .input("StockCode", StockCode)
         .query(deleteCodeQuery);
-      let deleteStockQuery=`delete from currentStock2 where stockcode=@stockCode`;
+      let deleteStockQuery=`use [StockUpload] delete from currentStock2 where stockcode=@stockCode`;
       let result569 = await pool
         .request()
         .input("StockCode", StockCode)
@@ -719,7 +721,7 @@ const combinedData = updatedFilteredRowData1.map(item => {
       let currentDate = new Date();
       const formattedDate = currentDate.toISOString().split("T")[0]; // Outputs: '2025-03-08'
       // console.log(formattedDate);
-      let insertQueryForCurrentStock1 = `insert into currentStock1(locationID,stockdate,addedby) output inserted.tcode values(@locationID,@formattedDate,@addedBy)`;
+      let insertQueryForCurrentStock1 = `use [StockUpload] insert into currentStock1(locationID,stockdate,addedby) output inserted.tcode values(@locationID,@formattedDate,@addedBy)`;
 
       const result1 = await pool
         .request()
@@ -739,6 +741,7 @@ const combinedData = updatedFilteredRowData1.map(item => {
       });
 
       try {
+        await pool.request().query('use stockupload')
         const table1 = new sql.Table("currentStock2"); // Updated table name
         table1.create = false;
 
@@ -760,7 +763,7 @@ const combinedData = updatedFilteredRowData1.map(item => {
         console.error("Error during bulk insert:", error);
         return error; // Rethrow the error for further handling if necessary
       }
-      let currentCountQuery = `select sum(qty) as currentQuantSum from currentStock2 where stockCode=@tCode`;
+      let currentCountQuery = `use [StockUpload] select sum(qty) as currentQuantSum from currentStock2 where stockCode=@tCode`;
       let result678 = await pool
         .request()
         .input("tCode", tCode)
@@ -770,7 +773,7 @@ const combinedData = updatedFilteredRowData1.map(item => {
         currentQuantSum = result678.recordset[0].currentQuantSum;
       }
 
-      let logQuery = `insert into Stock_Upload_Logs(location_id,stockCode,added_by,brand_id, stockUploadCount,operation_type,quantitySum,
+      let logQuery = `use [StockUpload] insert into Stock_Upload_Logs(location_id,stockCode,added_by,brand_id, stockUploadCount,operation_type,quantitySum,
 prevStockUploadCount,prevQuantitySum) values(@locationId,@tCode,@addedBy,@brandId,@rowCount,'multi-location upload stock',@currentQuantSum,@countPrevRecords,@quantitySumPrev)`;
       await pool
         .request()
@@ -794,6 +797,7 @@ prevStockUploadCount,prevQuantitySum) values(@locationId,@tCode,@addedBy,@brandI
       ];
     });
     try {
+      await pool.request().query('use stockupload')
       const table = new sql.Table("part_not_in_master"); // Updated table name
       table.create = false;
 
@@ -826,7 +830,7 @@ const getAllRecordsMultiLocation=async (req,res)=>{
         let userId=req.added_by;
         for(let i=0;i<locations.length;i++){
             let locationId =locations[i].location;
-            let getQuery = `select location_id,added_on,added_by,stockUploadCount,quantitySum,prevQuantitySum,prevStockUploadCount from stock_upload_logs where location_id=@locationId and added_by=@userId`;
+            let getQuery = `use [StockUpload] select location_id,added_on,added_by,stockUploadCount,quantitySum,prevQuantitySum,prevStockUploadCount from stock_upload_logs where location_id=@locationId and added_by=@userId`;
     
             let result = await pool
               .request()
@@ -864,7 +868,7 @@ const getUploadedDataMultiLocationInService=async(req,res)=>{
         //   console.log("location id ",locationId)
           try {
 
-            const getBrandQuery = `SELECT location FROM locationInfo WHERE locationId = @locationId`;
+            const getBrandQuery = `use [z_scope] SELECT location FROM locationInfo WHERE locationId = @locationId`;
             const result = await pool
               .request()
               .input('locationId', locationId)
@@ -872,7 +876,7 @@ const getUploadedDataMultiLocationInService=async(req,res)=>{
     
             // let brandId = result.recordset[0].brandId;
             let locationName=result.recordset[0].location;
-            let getQuery = `select ck2.partnumber,ck2.qty from currentStock2 ck2 join 
+            let getQuery = `use [StockUpload] select ck2.partnumber,ck2.qty from currentStock2 ck2 join 
                 currentStock1 ck1 on ck1.tcode=ck2.StockCode where locationId=@locationId`;
             
            let result1= await pool.request().input('locationId',locationId).query(getQuery);   
@@ -937,7 +941,7 @@ const getPartNotInMasterMultiLocationInService=async(req,res)=>{
     
           try {
             // Fetch brandId for the location
-            const getBrandQuery = `SELECT brandId,location FROM locationInfo WHERE locationId = @locationId`;
+            const getBrandQuery = `use [z_scope] SELECT brandId,location FROM locationInfo WHERE locationId = @locationId`;
             const result = await pool
               .request()
               .input('locationId', locationId)
@@ -947,7 +951,7 @@ const getPartNotInMasterMultiLocationInService=async(req,res)=>{
             let locationName=result.recordset[0].location;
     
             // Fetch partnumbers based on brandId
-            const getQuery = `SELECT partnumber FROM part_not_in_master WHERE brand_id = @brandId`;
+            const getQuery = `use [StockUpload] SELECT partnumber FROM part_not_in_master WHERE brand_id = @brandId`;
             const result1 = await pool
               .request()
               .input('brandId', brandId)

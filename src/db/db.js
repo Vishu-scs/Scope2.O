@@ -1,6 +1,19 @@
 import sql from 'mssql'
 import "dotenv/config"
 const config1 = {
+    // server: "10.10.152.18",    // SQL Server hostname or IP address
+    // database: "z_scope",    // Your database name
+    // user: "sa",                // SQL Server login username
+    // password: "HazazUh5zusWaVIrad",
+    // port:Number(1433),        // SQL Server login password
+    // options: {
+    //     encrypt: true,           // Disable encryption for local servers
+    //     enableArithAbort: true ,
+    //     trustServerCertificate: true,  // Helps with certain SQL Server errors
+    // },
+    // requestTimeout: 6000000, // 30 seconds
+    // connectionTimeout: 30000, // 30 seconds
+
     server: process.env.SERVER,    // SQL Server hostname or IP address
     database: process.env.DATABASE,    // Your database name
     user: process.env.USER,                // SQL Server login username
@@ -15,7 +28,6 @@ const config1 = {
     connectionTimeout: 30000, // 30 seconds
 };
  
-
 let pool;
 const connectDB = async()=>{
 pool = await new sql.connect(config1)

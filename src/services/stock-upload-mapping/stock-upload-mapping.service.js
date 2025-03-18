@@ -11,7 +11,7 @@ export const addMapping=async (req,res)=>{
     //    let location=req.values.location;
     //    let stockQty=req.values.stockQty;
       const pool=await getPool1();
-      let query=`Insert into Stock_Upload_Mapping(part_number,stock_qty,loc,added_by,brand_id,stock_type,brandColumns,operation) 
+      let query=`use [StockUpload] Insert into Stock_Upload_Mapping(part_number,stock_qty,loc,added_by,brand_id,stock_type,brandColumns,operation) 
       output inserted.id
        values(@partNumber,@stockQty,@location,@userId,@brandId,@stockType,@brandColumns,'create')`;
 
@@ -27,7 +27,7 @@ export const addMapping=async (req,res)=>{
 
       let insertedId=result.recordset[0]?.id;
     //   console.log("result ",result,insertedId)
-      let logQuery=`Insert into Stock_Upload_Logs(added_by,operation_type,part_number,stock_qty,location) 
+      let logQuery=`use [StockUpload] Insert into Stock_Upload_Logs(added_by,operation_type,part_number,stock_qty,location) 
       values(@userId,'create stock upload mapping',@partNumber,@stockQty,@location)`
     await pool.request()
     .input('userId',req.userId)
@@ -48,7 +48,7 @@ export const viewMapping=async (req,res)=>{
     try{
         const pool=await getPool1();
         let brandId=req.brand_id;
-        let query='Select * from Stock_Upload_Mapping where brand_id=@brandId';
+        let query='use [StockUpload] Select * from Stock_Upload_Mapping where brand_id=@brandId';
         const result=await pool.request().input('brandId',brandId).query(query);
   
         return result.recordset;
@@ -63,7 +63,7 @@ export const editMapping=async(req,res)=>{
     try{
         const currentDateInIST = moment.tz("Asia/Kolkata").format('YYYY-MM-DD HH:mm:ss');
        const pool=await getPool1();
-       let query=`Update Stock_Upload_Mapping set 
+       let query=`use [StockUpload] Update Stock_Upload_Mapping set 
        part_number=@partNumber,
        stock_qty=@stockQty,
        loc=@location,
@@ -90,7 +90,7 @@ export const editMapping=async(req,res)=>{
        .query(query);
  
       
-       let logQuery=`Insert into Stock_Upload_Logs(added_by,operation_type,part_number,stock_qty,location)
+       let logQuery=`use [StockUpload] Insert into Stock_Upload_Logs(added_by,operation_type,part_number,stock_qty,location)
         values(@userId,'update stock upload mapping',@partNumber,@stockQty,@location)`
      await pool.request()
      .input('userId',req.userId)
@@ -109,7 +109,7 @@ export const editMapping=async(req,res)=>{
 export const alreadyExistedMapping=async(req,res)=>{
     try{
         const pool=await getPool1();
-        let query =` select * from stock_upload_mapping`;
+        let query =`use [StockUpload]  select * from stock_upload_mapping`;
         const result =await pool.request().query(query);
   
         return result.recordset;
