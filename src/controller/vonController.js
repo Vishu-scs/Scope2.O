@@ -266,7 +266,7 @@ const result = await request.query(query);
 }
 const adminView = async(req,res)=>{
     try {
-        const pool = await  getPool1()
+        const pool =await getPool1()
         const {brandid, dealerid, r1, r2 ,l1,l2, partnumber , locationid , flag, seasonalid, modelid, natureid, status,parttype} = req.body
         if(!brandid || !dealerid){
             return res.status(400).json({Error:`Brandid and Dealerid are required Parameter`})
@@ -275,10 +275,11 @@ const adminView = async(req,res)=>{
         if(!partnumber && !locationid){
             return res.status(400).json({Error:`partnumber or locationid is required`})
         }
-         const request = pool.request();
         
+         const request = pool.request();
+
         // Handle potential NULL values correctly
-        request.input('brandid',sql.Int,brandid)
+        request.input('brandid',sql.Int,brandid)        
         request.input('dealerid',sql.Int,dealerid)
         request.input('r1', sql.Int, r1 ?? null);
         request.input('r2', sql.Int, r2 ?? null);
@@ -293,8 +294,7 @@ const adminView = async(req,res)=>{
         request.input('status', sql.Bit, status ?? null);
         request.input('parttype', sql.Bit, parttype ?? null);
 
-        const result = await request.query(query);
-        
+        const result = await request.query(query);        
         res.status(200).json({Data:result.recordset})
 } catch (error) {
     res.status(500).json({Error:error.message})
