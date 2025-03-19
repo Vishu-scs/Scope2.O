@@ -11,7 +11,7 @@ export const addMapping=async (req,res)=>{
     //    let location=req.values.location;
     //    let stockQty=req.values.stockQty;
       const pool=await getPool1();
-      let query=`use [StockUpload] Insert into Stock_Upload_Mapping(part_number,stock_qty,loc,added_by,brand_id,stock_type,brandColumns,operation) 
+      let query=`use [stockUpload] Insert into Stock_Upload_Mapping(part_number,stock_qty,loc,added_by,brand_id,stock_type,brandColumns,operation) 
       output inserted.id
        values(@partNumber,@stockQty,@location,@userId,@brandId,@stockType,@brandColumns,'create')`;
 
@@ -109,7 +109,7 @@ export const editMapping=async(req,res)=>{
 export const alreadyExistedMapping=async(req,res)=>{
     try{
         const pool=await getPool1();
-        let query =`use [StockUpload]  select * from stock_upload_mapping`;
+        let query =`use [stockUpload] select * from stock_upload_mapping`;
         const result =await pool.request().query(query);
   
         return result.recordset;

@@ -27,6 +27,22 @@ const config1 = {
     requestTimeout: 6000000, // 30 seconds
     connectionTimeout: 30000, // 30 seconds
 };
+
+// const stockUploadConfig={
+//      server: "10.10.152.16",    // SQL Server hostname or IP address
+//     database: "stockUpload",    // Your database name
+//     user: "Kirti",                // SQL Server login username
+//     password: "sadfs324@#$sdf",
+//     port:Number(1433),        // SQL Server login password
+//     options: {
+//         encrypt: true,           // Disable encryption for local servers
+//         enableArithAbort: true ,
+//         trustServerCertificate: true,  // Helps with certain SQL Server errors
+//     },
+//     requestTimeout: 6000000, // 30 seconds
+//     connectionTimeout: 30000, // 30 seconds
+
+// }
  
 let pool;
 const connectDB = async()=>{
@@ -41,6 +57,28 @@ pool = await new sql.connect(config1)
     throw err;
 });
 };
+// let stPool;
+// const connectDB2 = async()=>{
+//     pool = await new sql.connect(stockUploadConfig)
+//     // .connect()
+//     .then(pool => {
+//         console.log('Connected to DB2 SQL Server');
+//         return pool;
+//     })
+//     .catch(err => {
+//         console.error('Database connection failed!', err);
+//         throw err;
+//     });
+//     };
+
+
+    
+// const getPool2 = () => {
+//     if (!stPool) {
+//         throw new Error("Database connection is not established yet");
+//     }
+//     return pool;
+//   };
 
 const getPool1 = () => {
   if (!pool) {

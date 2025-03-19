@@ -116,7 +116,7 @@ const singleUploadStockInService=async(req,res)=>{
         .query(insertedDataQuery);
        insertedDataResult = result56.recordset;
       countPrevRecords = insertedDataResult.length;
-      console.log("stock code ",StockCode)
+      // console.log("stock code ",StockCode)
       if (insertedDataResult.length != 0) {
         // console.log("countRecords inserted ",countPrevRecords)
         // StockCode = insertedDataResult[0].StockCode;
@@ -521,7 +521,7 @@ const uploadBulkStock=async(req,res)=>{
           .request()
           .input("StockCode", StockCode)
           .query(quanitySumQuery);
-        console.log("quantity sum ",result567.recordset)
+        // console.log("quantity sum ",result567.recordset)
         if (result567.recordset.length != 0) {
           quantitySumPrev = result567.recordset[0].QuantSum;
           // console.log("quant sum prev ",quantitySumPrev);

@@ -136,11 +136,24 @@ const readExcelFileWithSubColumns = async (filePath) => {
     //   return obj;
     // });
 
-    let resultData = data.slice(1).map((row) => {
+    // let resultData = data.slice(1).map((row) => {
+    //   let obj = {};
+    //   row.forEach((cell, index) => {
+    //     // Remove special characters from each cell value
+    //     obj[headers[index]] = removeSpecialCharacters(cell);
+    //   });
+    //   return obj;
+    // });
+
+    let resultData = data.slice(1).map((row) => { 
       let obj = {};
       row.forEach((cell, index) => {
-        // Remove special characters from each cell value
-        obj[headers[index]] = removeSpecialCharacters(cell);
+        // If the header is not 'dealer' or 'location', remove special characters
+        if (mergedHeaders[index].toLowerCase() !== 'dealer' && mergedHeaders[index].toLowerCase() !== 'location') {
+          obj[mergedHeaders[index]] = removeSpecialCharacters(cell);
+        } else {
+          obj[mergedHeaders[index]] = cell; // Leave 'dealer' and 'location' as they are
+        }
       });
       return obj;
     });
@@ -189,22 +202,31 @@ const readExcelFile = async (filePath) => {
         console.log("File deleted successfully:", filePath);
       }
     });
-    // let resultData = data.map((row) => {
+   
+    // let resultData = data.slice(1).map((row) => {
     //   let obj = {};
-    //   headers.forEach((header, index) => {
-    //     obj[header] = row[index]; // Assign the corresponding value for each header
+    //   row.forEach((cell, index) => {
+    //     // Remove special characters from each cell value
+    //     obj[headers[index]] = removeSpecialCharacters(cell);
     //   });
     //   return obj;
     // });
-    let resultData = data.slice(1).map((row) => {
+
+    // console.log("headers ",headers)
+    let resultData = data.slice(1).map((row) => { 
       let obj = {};
       row.forEach((cell, index) => {
-        // Remove special characters from each cell value
-        obj[headers[index]] = removeSpecialCharacters(cell);
+        // If the header is not 'dealer' or 'location', remove special characters
+        if (headers[index].toLowerCase() !== 'dealer' && headers[index].toLowerCase() !== 'location') {
+          obj[headers[index]] = removeSpecialCharacters(cell);
+        } else {
+          obj[headers[index]] = cell; // Leave 'dealer' and 'location' as they are
+        }
       });
       return obj;
     });
-    //  console.log("header ",resultData)
+    
+      // console.log("header ",resultData)
     return { headers: headers, data: resultData };
   } catch (error) {
     console.log("error in reading the excel file ", error.message);
@@ -242,6 +264,14 @@ const removeSpecialCharacters = (str) => {
   // This regular expression removes all non-alphanumeric characters (except spaces)
   str=str+'';
   return str.replace(/[^a-zA-Z0-9 ]/g, '');
+
+//   if (header == "location" || header=='dealer') {
+//     // console.log(convertedStr)
+//     return convertedStr.trim();  // Return the string as is for 'dealer location'
+// }
+// else{
+//       convertedStr= convertedStr.replace(/[^a-zA-Z0-9\s]/g, "")
+// }
 };
 export const getLocationsInService= async function (req) {
   try {

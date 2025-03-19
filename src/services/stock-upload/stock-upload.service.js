@@ -485,6 +485,7 @@ const stockUploadMultiLocation = async (req, res) => {
   try {
     let location=req.body.location_id
     let locations = req.body.location_id;
+    let quantitySumPrev = 0;
     // console.log(typeof location)
     if(typeof location=='string'){
         locations=[location];
@@ -517,7 +518,7 @@ const stockUploadMultiLocation = async (req, res) => {
 
     let mappedData = mappingResult.recordset[0];
     // console.log("mapped data in stock upload multi location ",mappedData);
-    let partMasterQuery = `use [StockUpload] select partnumber1 ,partID from part_master where brandId=@brandId`;
+    let partMasterQuery = `use [z_scope] select partnumber1 ,partID from part_master where brandId=@brandId`;
 
     const result = await pool
       .request()
@@ -536,9 +537,6 @@ const stockUploadMultiLocation = async (req, res) => {
 
     let deletePartMasterQuery = `use [StockUpload] delete from part_not_in_master where brand_id=@brandId`;
     await pool.request().input("brandId", brandId).query(deletePartMasterQuery);
-
-  
-   
    
     for (let i = 0; i < locations.length; i++) {
         // console.log("exexuted ")
@@ -573,6 +571,9 @@ const stockUploadMultiLocation = async (req, res) => {
   let insertedDataResult=[];
 // console.log("tcode ",StockCode,locationId)
   if(res45.recordset.length>0){
+     let quantityPrevQuery=`use [StockUpload] select sum(qty) as prevQuantSum from currentStock2 where StockCode=@StockCode`;
+     let res456=await pool.request().input('StockCode',StockCode).query(quantityPrevQuery);
+     quantitySumPrev=res456.recordset[0].prevQuantSum
 
       let insertedDataQuery = `use [StockUpload] Select partNumber,partID,qty from currentStock2 where Stockcode=@StockCode`;
     
@@ -714,9 +715,7 @@ const combinedData = updatedFilteredRowData1.map(item => {
    // Create a map to track the occurrences of part_number and total stock_qty
    let updatedFilteredRowData2=[];
    updatedFilteredRowData2 =combinedData;
-      let quantitySumPrev = 0;
       
-    
       let rowCount = updatedFilteredRowData2?.length;
       let currentDate = new Date();
       const formattedDate = currentDate.toISOString().split("T")[0]; // Outputs: '2025-03-08'

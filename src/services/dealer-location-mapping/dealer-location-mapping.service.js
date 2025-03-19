@@ -22,7 +22,7 @@ const addDealerLocationMappingInService=async (req,res)=>{
      
         const  lowerCaseHeaders=headers.map((header)=> header.trim().toLowerCase());
 
-        if(!lowerCaseHeaders.includes('dealer') && !lowerCaseHeaders.includes('location')){
+        if(!lowerCaseHeaders.includes('dealer') && !lowerCaseHeaders.includes('location') && !lowerCaseHeaders.includes('inventory location')){
             isDealerAndLocationExist=false
             console.log("is dealer location exist in file ",isDealerAndLocationExist)
             return {isDealerAndLocationPresent:isDealerAndLocationExist};
@@ -36,7 +36,7 @@ const addDealerLocationMappingInService=async (req,res)=>{
             return {isDealerAndLocationNull:isDealerAndLocationNull}
          }
 
-         let getDealerAndLocationQuery='use [z_scope] Select dealer,location,dealerId,locationId from locationInfo where status=1 and dealerStatus=1 and brandId=@brandId';
+         let getDealerAndLocationQuery='use z_scope Select dealer,location,dealerId,locationId from locationInfo where status=1 and dealerStatus=1 and brandId=@brandId';
          const res=await pool.request().input('brandId',brandId).query(getDealerAndLocationQuery);
          let dealerAndLocationResult=res.recordset;
         //  console.log("dealer location result",dealerAndLocationResult)
@@ -107,7 +107,7 @@ const addDealerLocationMappingInService=async (req,res)=>{
             // console.log("values ",values);
         
             try {
-                await pool.request().query('use [stockupload]')
+                await pool.request().query('use [StockUpload]')
             const table = new sql.Table('Dealer_Location_Mapping'); // Updated table name
             table.create = false;
         
@@ -200,7 +200,7 @@ const editDealerLocationMappingInService=async(req,res)=>{
        
         const  lowerCaseHeaders=headers.map((header)=> header.trim().toLowerCase());
 
-        if(!lowerCaseHeaders.includes('dealer') && !lowerCaseHeaders.includes('location')){
+        if(!lowerCaseHeaders.includes('dealer') && !lowerCaseHeaders.includes('location') && !lowerCaseHeaders.includes('inventory location')){
             isDealerAndLocationExist=false
             // console.log("is dealer location exist in file ",isDealerAndLocationExist)
             return {isDealerAndLocationPresent:isDealerAndLocationExist};
@@ -215,12 +215,13 @@ const editDealerLocationMappingInService=async(req,res)=>{
             return {isDealerAndLocationNull:isDealerAndLocationNull}
          }
 
-         let getDealerAndLocationQuery='use [z_scope] Select dealer,location,dealerId,locationId from locationInfo where status=1 and dealerStatus=1 and brandId=@brandId';
+         let getDealerAndLocationQuery='use z_scope Select dealer,location,dealerId,locationId from locationInfo where status=1 and dealerStatus=1 and brandId=@brandId';
          const res=await pool.request().input('brandId',brandId).query(getDealerAndLocationQuery);
          let dealerAndLocationResult=res.recordset;
         //  console.log("dealer location result",dealerAndLocationResult)
         //  let dealerLocationNotInMaster=[];
 
+        // console.log("row data ",rowData)
          rowData.forEach((row,index)=>{
 
             const normalizedItem=Object.keys(row).reduce((acc,key)=>{
@@ -258,7 +259,7 @@ const editDealerLocationMappingInService=async(req,res)=>{
 
            
         })
-        //  console.log("dealer location not in master ",dealerLocationNotInMaster)
+        //  console.log("dealer location not in master ",dealerLocationNotInMaster,rowData)
 
         if(dealerLocationNotInMaster.length!=0){
             return {dealerLocationNotInMasterPresent:true}
@@ -372,7 +373,7 @@ const editDealerLocationMappingInService=async(req,res)=>{
                 // console.log(item)
                 if(item.isTraversed){
                     operation="update dealer location mapping"
-                    let updateQuery=`use [StockUpload] Update dealer_location_mapping set added_on=Getdate(),operation=@operation where id=@id`;
+                    let updateQuery=`use stockUpload  Update dealer_location_mapping set added_on=Getdate(),operation=@operation where id=@id`;
                     await pool.request().input('id',item.id)
                     .input('operation',operation).query(updateQuery);
                    // console.log("updatd succesfully")
@@ -382,7 +383,7 @@ const editDealerLocationMappingInService=async(req,res)=>{
       
             rowCount=rowData.length;
 
-            let logQuery=`use [StockUpload] Insert into Stock_Upload_Logs(brand_id,added_by,operation_type,dealerLocationMappingRowCount) 
+            let logQuery=`use stockUpload Insert into Stock_Upload_Logs(brand_id,added_by,operation_type,dealerLocationMappingRowCount) 
             values(@brandId,@userId,'update dealer location mapping',@rowCount)`;
     
             await pool.request().input('brandId',brandId)
@@ -405,7 +406,7 @@ const exportUploadedData=async (req,res)=>{
         let brandId=req.brand_id;
         const pool=await getPool1();
         // console.log(brandId)
-        let query=`use [StockUpload] Select dealer,location ,inventory_location,added_by,added_on,brandId from dealer_location_mapping where brandId=@brandId`;
+        let query=`Select dealer,location ,inventory_location,added_by,added_on,brandId from dealer_location_mapping where brandId=@brandId`;
         const result=await pool.request().input('brandId',brandId).query(query);
 
         //  console.log(result.recordset);
@@ -423,7 +424,7 @@ const deleteQuery=async (updatedElement)=>{
     // console.log(updatedElement);
     let id=updatedElement.id;
     
-    let deleteQuery=`use [StockUpload] Delete from dealer_location_mapping where id=@id `;
+    let deleteQuery=`Delete from dealer_location_mapping where id=@id `;
 
     await pool.request().input('id',id).query(deleteQuery);
 
