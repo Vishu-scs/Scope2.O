@@ -3,7 +3,7 @@ const router=express.Router();
 import multer from "multer";
 import fs from 'fs';
 import {allRecordsSingleUpload, getPartNotInMasterSingleUpload, singleUploadedData, 
-  singleUploadStock,bulkStockUpload} from '../../controller/stock-upload-by-scs-user/stock-upload-by-scs-user.controller.js'
+  singleUploadStock,bulkStockUpload,getBulkRecords} from '../../controller/stock-upload-by-scs-user/stock-upload-by-scs-user.controller.js'
 
 const uploadsDir='./mapping-uploads';
 if (!fs.existsSync(uploadsDir)) {
@@ -28,5 +28,5 @@ router.post('/all-uploadedData',singleUploadedData)
 router.post('/all-records',allRecordsSingleUpload)
 
 router.post('/bulk-upload',upload.single('excelFile'),bulkStockUpload)
-
+router.post('/all-records',getBulkRecords)
 export default router;

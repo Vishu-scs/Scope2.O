@@ -775,10 +775,34 @@ const uploadBulkStock=async(req,res)=>{
   }
 }
 
+const getBulkRecordsInService=async(req,res)=>{
+  try {
+    const pool = await getPool1();
+    let dealerId=req.dealer_id;
+    let locationId = req.location_id;
+    let userId=req.added_by;
+    let getQuery = `select added_on,added_by,stockUploadCount,quantitySum,prevQuantitySum,prevStockUploadCount from stock_upload_logs where location_id=@locationId and added_by=@userId`;
+
+    const result = await pool
+      .request()
+      .input("locationId", locationId)
+      .input("userId", userId)
+      .query(getQuery);
+
+    return result.recordset;
+  } catch (error) {
+    console.log(
+      "error in stock upload service in getAll records single loc",
+      error.message
+    );
+    return error;
+  }
+}
 export  {
     singleUploadStockInService,
     getPartNotInMasterSingleUpload,
     uploadStock,
     getAllRecords,
-    uploadBulkStock
+    uploadBulkStock,
+    getBulkRecordsInService
 }
