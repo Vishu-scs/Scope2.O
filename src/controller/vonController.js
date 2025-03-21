@@ -384,4 +384,144 @@ try {
     res.status(500).json({Error:error.message})
 }
 }
-export {remarkMaster,userView,adminView,userFeedbacklog,viewLog,newRemark,viewRemark,adminFeedbackLog,partFamily}
+const countPending = async(req,res)=>{
+try {
+        const pool = await getPool1()
+        const {brandid , dealerid} = req.body
+    //     const query = `
+    //     use [UAD_VON]
+    //     DECLARE @brandid INT = ${brandid}; -- Pass NULL to fetch all brandid
+    //     DECLARE @dealerid INT = ${dealerid}; -- Pass NULL to fetch all dealerid
+    //     DECLARE @sql NVARCHAR(MAX) = N'';
+    //     SELECT @sql = @sql + 
+    //     'SELECT ' + 
+    //     CASE 
+    //         WHEN @dealerid IS NOT NULL THEN 'locationid' 
+    //         WHEN @brandid IS NOT NULL THEN 'dealerid' 
+    //         ELSE 'brandid' 
+    //     END + 
+    //     ', COUNT(status) AS Pending FROM ' + name + 
+    //     ' WHERE status = ''Pending''' + 
+    //     CASE WHEN @brandid IS NOT NULL 
+    //          THEN ' AND brandid = ' + CAST(@brandid AS NVARCHAR(10)) 
+    //          ELSE '' 
+    //     END + 
+    //     CASE WHEN @dealerid IS NOT NULL 
+    //          THEN ' AND dealerid = ' + CAST(@dealerid AS NVARCHAR(10)) 
+    //          ELSE '' 
+    //     END + 
+    //     ' GROUP BY ' + 
+    //     CASE 
+    //         WHEN @dealerid IS NOT NULL THEN 'locationid' 
+    //         WHEN @brandid IS NOT NULL THEN 'dealerid' 
+    //         ELSE 'brandid' 
+    //     END + 
+    //     ' UNION ALL ' 
+    // FROM sys.tables
+    // WHERE name LIKE 'UAD_VON_SPMFeedback_%';
+    
+    // -- Remove the last 'UNION ALL'
+    // SET @sql = LEFT(@sql, LEN(@sql) - 10);
+    
+    // -- Print or execute the query
+    // PRINT @sql;
+    // EXEC sp_executesql @sql;`
+
+    // This is static Query for counts
+    const query = `USE [UAD_VON]; 
+DECLARE @sql NVARCHAR(MAX) = N'';
+SELECT @sql = @sql + 
+    'SELECT li.Brand, li.dealer, li.location, COUNT(*) AS Pending ' +
+    'FROM ' + QUOTENAME(name) + ' a ' + 
+    'JOIN z_scope..locationinfo li ON li.locationid = a.locationid ' + 
+    'WHERE a.status = ''Pending'' ' +
+    'GROUP BY li.Brand, li.dealer, li.location UNION ALL ' 
+FROM sys.tables
+WHERE name LIKE 'UAD_VON_SPMFeedback_%';
+
+-- Remove the last ' UNION ALL ' to avoid syntax error
+IF LEN(@sql) > 10
+    SET @sql = LEFT(@sql, LEN(@sql) - 10);
+
+-- Append ORDER BY
+SET @sql = @sql + ' ORDER BY Pending DESC;';
+
+-- Execute the dynamically built SQL
+EXEC sp_executesql @sql;`
+    const result = await pool.request().query(query)
+    // console.log(result.recordset);
+    res.status(200).json({Data:result.recordset})
+} catch (error) {
+      res.status(500).json({Error:error.message})
+}
+}
+const partFamilySale = async(req,res)=>{
+try {
+        const pool = await getPool1()
+        const {partnumber , brandid , dealerid , locationid}= req.body
+        const query = `DECLARE @partnumber NVARCHAR(50) = '${partnumber}',
+     @brandid INT = ${brandid},
+     @dealerid INT = ${dealerid}, 
+     @locationid INT = ${locationid},
+     @ls INT = 6,                          -- Number of months to generate
+     @st INT = 1,                          -- Loop counter
+     @Columnsold NVARCHAR(MAX) = '',       -- Will hold the dynamic column list
+     @d1 NVARCHAR(100),                    -- Dynamic column name for _WS column
+     @d2 NVARCHAR(100),                    -- Dynamic column name for _CS column
+     @SQL NVARCHAR(MAX);
+    
+    -----------------------------------------------------
+    -- Generate Dynamic Column List for the past 6 months
+    -----------------------------------------------------
+    WHILE @st <= @ls  
+    BEGIN  
+        SET @d1 = CONCAT(
+                    LEFT(DATENAME(MONTH, DATEADD(MONTH, -@st, GETDATE())), 3), '_',
+                    RIGHT(CONVERT(VARCHAR(4), YEAR(DATEADD(MONTH, -@st, GETDATE()))), 2), '_WS');  
+        SET @d2 = CONCAT(
+                    LEFT(DATENAME(MONTH, DATEADD(MONTH, -@st, GETDATE())), 3), '_',
+                    RIGHT(CONVERT(VARCHAR(4), YEAR(DATEADD(MONTH, -@st, GETDATE()))), 2), '_CS');  
+    
+        SET @Columnsold = @Columnsold + CASE WHEN @Columnsold = '' THEN '' ELSE ', ' END 
+                           + QUOTENAME(@d1) + ', ' + QUOTENAME(@d2);  
+    
+        SET @st = @st + 1;  
+    END;  
+    
+    -- Debugging output
+    PRINT @Columnsold;
+    
+    -- Construct the dynamic SQL
+    SET @SQL = '
+    SELECT partnumber, ' + @Columnsold + '
+    FROM dealer_sale_upload_old_td001_' + CAST(@dealerid AS NVARCHAR(10)) + '
+    WHERE locationid = @locationid 
+    AND partnumber IN ( 
+        SELECT pm.partnumber 
+        FROM part_master pm
+        WHERE pm.partnumber = @partnumber 
+        AND pm.brandid = @brandid
+        UNION ALL
+        SELECT pm_sub.partnumber 
+        FROM substitution_master sm
+        JOIN part_master pm_sub 
+            ON sm.subpartnumber = pm_sub.partnumber
+        WHERE sm.partnumber = @partnumber
+        AND pm_sub.brandid = @brandid
+    )';
+    
+    -- Debugging output
+    PRINT @SQL;
+    
+    -- Execute the dynamic SQL using parameterization
+    EXEC sp_executesql @SQL, 
+        N'@locationid INT, @partnumber NVARCHAR(50), @brandid INT', 
+        @locationid, @partnumber, @brandid;`
+        const result = await pool.request().query(query)
+        res.status(200).json({Data:result.recordset})
+} catch (error) {
+     res.status(500).json({Error:error.message})
+}
+
+}
+export {remarkMaster,userView,adminView,userFeedbacklog,viewLog,newRemark,viewRemark,adminFeedbackLog,partFamily,countPending,partFamilySale}
