@@ -21,10 +21,10 @@ const addDealerLocationMappingInService=async (req,res)=>{
 
      
         const  lowerCaseHeaders=headers.map((header)=> header.trim().toLowerCase());
-
-        if(!lowerCaseHeaders.includes('dealer') && !lowerCaseHeaders.includes('location') && !lowerCaseHeaders.includes('inventory location')){
+        // console.log("lowe case ",!(lowerCaseHeaders.includes('dealer') && lowerCaseHeaders.includes('location') && lowerCaseHeaders.includes('inventory location')))
+        if(!(lowerCaseHeaders.includes('dealer') && lowerCaseHeaders.includes('location') && lowerCaseHeaders.includes('inventory location'))){
             isDealerAndLocationExist=false
-            console.log("is dealer location exist in file ",isDealerAndLocationExist)
+            //console.log("is dealer location exist in file ",isDealerAndLocationExist)
             return {isDealerAndLocationPresent:isDealerAndLocationExist};
         }
 
@@ -162,7 +162,8 @@ const addDealerLocationMappingInService=async (req,res)=>{
 const checkFields=async(arr)=>{
 
    arr= await convertKeysToLowercase(arr);
-    return arr.some(item => (item.dealer === null || item.dealer==undefined) || item.location === null|| item.location==undefined);
+//    console.log("arr ",arr)
+    return arr.some(item => (item.dealer === null || item.dealer==undefined) || item.location === null|| item.location==undefined || item["inventory location"] ==null || item["inventory location"] ==undefined );
 }
 const convertKeysToLowercase = (arr) => {
     return arr.map(item => {
@@ -200,7 +201,7 @@ const editDealerLocationMappingInService=async(req,res)=>{
        
         const  lowerCaseHeaders=headers.map((header)=> header.trim().toLowerCase());
 
-        if(!lowerCaseHeaders.includes('dealer') && !lowerCaseHeaders.includes('location') && !lowerCaseHeaders.includes('inventory location')){
+        if(!(lowerCaseHeaders.includes('dealer') && lowerCaseHeaders.includes('location') && lowerCaseHeaders.includes('inventory location'))){
             isDealerAndLocationExist=false
             // console.log("is dealer location exist in file ",isDealerAndLocationExist)
             return {isDealerAndLocationPresent:isDealerAndLocationExist};
@@ -272,9 +273,9 @@ const editDealerLocationMappingInService=async(req,res)=>{
             isTraversed:false
         }))
         let mappedData1 = [...updatedMappedData];
-        console.log("updated mapped data ",mappedData1)
+        // console.log("updated mapped data ",mappedData1)
         rowData.forEach((item,index)=>{
-              console.log(item)
+            //   console.log(item)
             const isExist=mappedData1.some((element)=>element.dealerId==parseInt(item.dealerId) && element.locationId==parseInt(item.locationId));
 
             if(!isExist){
@@ -312,7 +313,7 @@ const editDealerLocationMappingInService=async(req,res)=>{
       // console.log("normalidex data ",normalizedRowData)
 
         if(normalizedRowData.length!=0){
-            operation="create dealer location mapping"
+            operation="update dealer location mapping"
             const values = normalizedRowData.map(item => {
                
                 return [
@@ -373,7 +374,7 @@ const editDealerLocationMappingInService=async(req,res)=>{
                 // console.log(item)
                 if(item.isTraversed){
                     operation="update dealer location mapping"
-                    let updateQuery=`use stockUpload  Update dealer_location_mapping set added_on=Getdate(),operation=@operation where id=@id`;
+                    let updateQuery=`use [stockUpload]  Update dealer_location_mapping set added_on=Getdate(),operation=@operation where id=@id`;
                     await pool.request().input('id',item.id)
                     .input('operation',operation).query(updateQuery);
                    // console.log("updatd succesfully")
@@ -383,7 +384,7 @@ const editDealerLocationMappingInService=async(req,res)=>{
       
             rowCount=rowData.length;
 
-            let logQuery=`use stockUpload Insert into Stock_Upload_Logs(brand_id,added_by,operation_type,dealerLocationMappingRowCount) 
+            let logQuery=`use [stockUpload] Insert into Stock_Upload_Logs(brand_id,added_by,operation_type,dealerLocationMappingRowCount) 
             values(@brandId,@userId,'update dealer location mapping',@rowCount)`;
     
             await pool.request().input('brandId',brandId)
@@ -406,7 +407,7 @@ const exportUploadedData=async (req,res)=>{
         let brandId=req.brand_id;
         const pool=await getPool1();
         // console.log(brandId)
-        let query=`Select dealer,location ,inventory_location,added_by,added_on,brandId from dealer_location_mapping where brandId=@brandId`;
+        let query=`use [stockUpload] Select dealer,location ,inventory_location,added_by,added_on,brandId from dealer_location_mapping where brandId=@brandId`;
         const result=await pool.request().input('brandId',brandId).query(query);
 
         //  console.log(result.recordset);
@@ -424,7 +425,7 @@ const deleteQuery=async (updatedElement)=>{
     // console.log(updatedElement);
     let id=updatedElement.id;
     
-    let deleteQuery=`Delete from dealer_location_mapping where id=@id `;
+    let deleteQuery=`use [StockUpload] Delete from dealer_location_mapping where id=@id `;
 
     await pool.request().input('id',id).query(deleteQuery);
 

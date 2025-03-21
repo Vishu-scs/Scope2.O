@@ -195,13 +195,7 @@ const readExcelFile = async (filePath) => {
     // console.log('Data:', data.slice(1)); // Data excluding headers
 
     // return { headers, data: data.slice(1) };
-    fs.unlink(filePath, (err) => {
-      if (err) {
-        console.error("Error deleting the file:", err);
-      } else {
-        console.log("File deleted successfully:", filePath);
-      }
-    });
+   
    
     // let resultData = data.slice(1).map((row) => {
     //   let obj = {};
@@ -217,6 +211,7 @@ const readExcelFile = async (filePath) => {
       let obj = {};
       row.forEach((cell, index) => {
         // If the header is not 'dealer' or 'location', remove special characters
+        // console.log("cell ",cell)
         if (headers[index].toLowerCase() !== 'dealer' && headers[index].toLowerCase() !== 'location') {
           obj[headers[index]] = removeSpecialCharacters(cell);
         } else {
@@ -225,7 +220,15 @@ const readExcelFile = async (filePath) => {
       });
       return obj;
     });
-    
+
+    // console.log("result data ",resultData)
+    fs.unlink(filePath, (err) => {
+      if (err) {
+        console.error("Error deleting the file:", err);
+      } else {
+        console.log("File deleted successfully:", filePath);
+      }
+    });
       // console.log("header ",resultData)
     return { headers: headers, data: resultData };
   } catch (error) {

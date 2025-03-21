@@ -54,38 +54,49 @@ const stockUploadSingleLocation = async (req, res) => {
 
   rowData = rowDataArray.map((rowData1) => ({
     part_number: rowData1[mappedData.part_number],
-    qty: rowData1[mappedData.stock_qty],
+    qty: parseInt(rowData1[mappedData.stock_qty],10),
     availability: rowData1["availability"],
     status: rowData1["status"],
   }));
 
   //  console.log("mapped data ",mappedResult)
   let filteredRowData = rowData.filter((row) => {
-    // Normalize all headers to lowercase
+    // Convert qty to a number safely (handle undefined/null cases)
+    const stockQty = parseInt(row.qty, 10) ;
+    // console.log("parse int ",stockQty)
+    // Check if part_number exists and is not empty
+    const hasPartNumber = row.part_number && row.part_number.trim() !== "";
+  
+    // Normalize headers
     const availabilityHeader = Object.keys(headers).find(
       (header) => header.toLowerCase() === "availability"
     );
     const statusHeader = Object.keys(headers).find(
       (header) => header.toLowerCase() === "status"
     );
-
-    if (brandId === 17 || brandId === 28 || brandId === 13) {
-      // Ensure part_number is not empty, stock_qty is >= 0,
-      // Availability is not 'on-hand', or status is 'good'
-      return (
-        (row.part_number || row.part_number >= 0) &&
-        ((row[availabilityHeader] &&
-          row[availabilityHeader].toLowerCase().trim() !== "on-hand") ||
-          (row[statusHeader] &&
-            row[statusHeader].toLowerCase().trim() === "good"))
-      );
-    } else {
-      // For other brands, just check part_number and stock_qty
-      return row.part_number || row.qty >= 0;
+  
+    // Get availability and status values
+    const availability = row[availabilityHeader]?.toLowerCase().trim();
+    const status = row[statusHeader]?.toLowerCase().trim();
+  
+    // Remove rows where part_number is null/empty and qty > 0
+    if (hasPartNumber && stockQty > 0) {
+      return true;
     }
+  
+    // For brandId 17, 28, and 13, remove if availability is "on-hand" and status is not "good"
+    if ([17, 28, 13].includes(brandId)) {
+      if (availability === "on-hand" && status !== "good") {
+        return true;
+      }
+    }
+  
+    // return true; // Keep the row if it passed all filters
   });
+  
+  
 
-  //   console.log("filtered data without null",filteredRowData.length)
+    //  console.log("filtered data without null",filteredRowData)
 
   let partMasterQuery = `use [z_scope] select partnumber1 ,partID from part_master where brandId=@brandId`;
 
@@ -126,7 +137,7 @@ const stockUploadSingleLocation = async (req, res) => {
         .query(insertedDataQuery);
        insertedDataResult = result56.recordset;
       countPrevRecords = insertedDataResult.length;
-      console.log("stock code ",StockCode)
+      // console.log("stock code ",StockCode)
       if (insertedDataResult.length != 0) {
         // console.log("countRecords inserted ",countPrevRecords)
         // StockCode = insertedDataResult[0].StockCode;
@@ -136,7 +147,7 @@ const stockUploadSingleLocation = async (req, res) => {
           .request()
           .input("StockCode", StockCode)
           .query(quanitySumQuery);
-        console.log("quantity sum ",result567.recordset)
+        // console.log("quantity sum ",result567.recordset)
         if (result567.recordset.length != 0) {
           quantitySumPrev = result567.recordset[0].QuantSum;
           // console.log("quant sum prev ",quantitySumPrev);
@@ -203,6 +214,8 @@ const stockUploadSingleLocation = async (req, res) => {
     }
   }
 
+
+ 
   
   // Create a map to track the occurrences of part_number and total stock_qty
   const partCountMap = new Map();
@@ -240,7 +253,7 @@ const stockUploadSingleLocation = async (req, res) => {
       partId: partId,
     })
   );
-    //  console.log("updated filtered data ",updatedFilteredRowData);
+     // console.log("updated filtered data ",updatedFilteredRowData);
 
   let rowCount;
   let currentDate;
@@ -599,28 +612,37 @@ const stockUploadMultiLocation = async (req, res) => {
 
       //  console.log("mapped data ",mappedResult)
       let filteredRowData = rowData.filter((row) => {
-        // Normalize all headers to lowercase
+        // Convert qty to a number safely (handle undefined/null cases)
+        const stockQty = parseInt(row.qty, 10) ;
+        // console.log("parse int ",stockQty)
+        // Check if part_number exists and is not empty
+        const hasPartNumber = row.part_number && row.part_number.trim() !== "";
+      
+        // Normalize headers
         const availabilityHeader = Object.keys(headers).find(
           (header) => header.toLowerCase() === "availability"
         );
         const statusHeader = Object.keys(headers).find(
           (header) => header.toLowerCase() === "status"
         );
-
-        if (brandId === 17 || brandId === 28 || brandId === 13) {
-          // Ensure part_number is not empty, stock_qty is >= 0,
-          // Availability is not 'on-hand', or status is 'good'
-          return (
-            (row.part_number || row.part_number >= 0) &&
-            ((row[availabilityHeader] &&
-              row[availabilityHeader].toLowerCase().trim() !== "on-hand") ||
-              (row[statusHeader] &&
-                row[statusHeader].toLowerCase().trim() === "good"))
-          );
-        } else {
-          // For other brands, just check part_number and stock_qty
-          return row.part_number || row.qty >= 0;
+      
+        // Get availability and status values
+        const availability = row[availabilityHeader]?.toLowerCase().trim();
+        const status = row[statusHeader]?.toLowerCase().trim();
+      
+        // Remove rows where part_number is null/empty and qty > 0
+        if (hasPartNumber && stockQty > 0) {
+          return true;
         }
+      
+        // For brandId 17, 28, and 13, remove if availability is "on-hand" and status is not "good"
+        if ([17, 28, 13].includes(brandId)) {
+          if (availability === "on-hand" && status !== "good") {
+            return true;
+          }
+        }
+      
+        // return true; // Keep the row if it passed all filters
       });
     //    console.log("filtered data in multi loc ",filteredRowData)
   

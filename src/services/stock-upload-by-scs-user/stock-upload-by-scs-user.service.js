@@ -51,30 +51,39 @@ const singleUploadStockInService=async(req,res)=>{
   }));
 
     // console.log("mapped data ",mappedData)
-  let filteredRowData = rowData.filter((row) => {
-    // Normalize all headers to lowercase
-    const availabilityHeader = Object.keys(headers).find(
-      (header) => header.toLowerCase() === "availability"
-    );
-    const statusHeader = Object.keys(headers).find(
-      (header) => header.toLowerCase() === "status"
-    );
-
-    if (brandId === 17 || brandId === 28 || brandId === 13) {
-      // Ensure part_number is not empty, stock_qty is >= 0,
-      // Availability is not 'on-hand', or status is 'good'
-      return (
-        (row.part_number || row.part_number >= 0) &&
-        ((row[availabilityHeader] &&
-          row[availabilityHeader].toLowerCase().trim() !== "on-hand") ||
-          (row[statusHeader] &&
-            row[statusHeader].toLowerCase().trim() === "good"))
+    let filteredRowData = rowData.filter((row) => {
+      // Convert qty to a number safely (handle undefined/null cases)
+      const stockQty = parseInt(row.qty, 10) ;
+      // console.log("parse int ",stockQty)
+      // Check if part_number exists and is not empty
+      const hasPartNumber = row.part_number && row.part_number.trim() !== "";
+    
+      // Normalize headers
+      const availabilityHeader = Object.keys(headers).find(
+        (header) => header.toLowerCase() === "availability"
       );
-    } else {
-      // For other brands, just check part_number and stock_qty
-      return row.part_number || row.qty >= 0;
-    }
-  });
+      const statusHeader = Object.keys(headers).find(
+        (header) => header.toLowerCase() === "status"
+      );
+    
+      // Get availability and status values
+      const availability = row[availabilityHeader]?.toLowerCase().trim();
+      const status = row[statusHeader]?.toLowerCase().trim();
+    
+      // Remove rows where part_number is null/empty and qty > 0
+      if (hasPartNumber && stockQty > 0) {
+        return true;
+      }
+    
+      // For brandId 17, 28, and 13, remove if availability is "on-hand" and status is not "good"
+      if ([17, 28, 13].includes(brandId)) {
+        if (availability === "on-hand" && status !== "good") {
+          return true;
+        }
+      }
+    
+      // return true; // Keep the row if it passed all filters
+    });
 
     //  console.log("filtered data without null",filteredRowData.length)
 
