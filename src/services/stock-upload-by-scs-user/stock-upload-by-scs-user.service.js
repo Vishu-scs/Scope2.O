@@ -77,7 +77,7 @@ const singleUploadStockInService=async(req,res)=>{
     
       // For brandId 17, 28, and 13, remove if availability is "on-hand" and status is not "good"
       if ([17, 28, 13].includes(brandId)) {
-        if (availability === "on-hand" && status !== "good") {
+        if (availability === "on-hand" && status == "good") {
           return true;
         }
       }
@@ -372,12 +372,21 @@ const singleUploadStockInService=async(req,res)=>{
     }
 }
 
-const getPartNotInMasterSingleUpload=async(req,res)=>{
+const getPartNotInMasterSingleUploadInService=async(req,res)=>{
 
     try{
         const pool=await getPool1();
+        let brandId=req.brand_id;
+        let getQuery = `use [StockUpload] Select partnumber from part_not_in_master where brand_id=@brandId`;
+        const result1 = await pool
+          .request()
+          .input("brandId", brandId)
+          .query(getQuery);
+        // console.log(result1.recordset)
+        return result1.recordset;
     }
     catch(error){
+      console.log("error ",error.message)
         return error;
     }
 }
@@ -809,7 +818,7 @@ const getBulkRecordsInService=async(req,res)=>{
 }
 export  {
     singleUploadStockInService,
-    getPartNotInMasterSingleUpload,
+    getPartNotInMasterSingleUploadInService,
     uploadStock,
     getAllRecords,
     uploadBulkStock,

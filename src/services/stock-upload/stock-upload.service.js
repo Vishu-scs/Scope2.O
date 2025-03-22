@@ -517,7 +517,7 @@ const stockUploadMultiLocation = async (req, res) => {
       .input("dealerId", dealerId)
       .query(brandQuery);
     let brandId = brandRes.recordset[0].brandId;
-    // console.log("brandid in stock upload multi location ",brandId)
+    //  console.log("brandid in stock upload multi location ",brandId)
     let getMappingQuery = `use [StockUpload] select part_number,stock_qty,loc,stock_type from stock_upload_mapping where brand_id=@brandId and stock_type='current'`;
 
     const mappingResult = await pool
@@ -569,6 +569,7 @@ const stockUploadMultiLocation = async (req, res) => {
         rowDataArray = fileData.data;
       }
       headers = fileData.headers;
+      // console.log("rowdata ",mappedData);
 
       rowData = rowDataArray.map((rowData1) => ({
         part_number: rowData1[mappedData.part_number],
@@ -576,6 +577,7 @@ const stockUploadMultiLocation = async (req, res) => {
         availability: rowData1["availability"],
         status: rowData1["status"],
       }));
+      // console.log("rowData ",rowData)
 
       let query12=`use [StockUpload] Select tcode from currentStock1 where locationId=@locationId`;
   const res45=await pool.request().input('locationId',locationId).query(query12);
@@ -637,14 +639,14 @@ const stockUploadMultiLocation = async (req, res) => {
       
         // For brandId 17, 28, and 13, remove if availability is "on-hand" and status is not "good"
         if ([17, 28, 13].includes(brandId)) {
-          if (availability === "on-hand" && status !== "good") {
+          if (availability === "on-hand" && status === "good") {
             return true;
           }
         }
       
         // return true; // Keep the row if it passed all filters
       });
-    //    console.log("filtered data in multi loc ",filteredRowData)
+        console.log("filtered data in multi loc ",filteredRowData)
   
       for (const item of filteredRowData) {
         let deleteItem = false; // Flag to determine if the item should be deleted

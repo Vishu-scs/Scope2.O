@@ -1,5 +1,5 @@
 import {singleUploadStockInService,getAllRecords,uploadBulkStock,
-    getBulkRecordsInService
+    getBulkRecordsInService,getPartNotInMasterSingleUploadInService
  }from '../../services/stock-upload-by-scs-user/stock-upload-by-scs-user.service.js'
 const singleUploadStock=async (req,res)=>{
     try{
@@ -14,8 +14,8 @@ const singleUploadStock=async (req,res)=>{
 const getPartNotInMasterSingleUpload=async (req,res)=>{
 
     try{
-        const result=await getPartNotInMasterSingleUpload(req.body);
-        res.status(200).json({message:'Fetched Successfully'});
+        const result=await getPartNotInMasterSingleUploadInService(req.body);
+        res.status(200).json({message:'Fetched Successfully',data:result});
     }
     catch(error){
         res.status(201).json({error:error.message})

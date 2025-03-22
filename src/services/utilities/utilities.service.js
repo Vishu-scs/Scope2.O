@@ -4,7 +4,7 @@ import fs from "fs";
 export const getBrands = async () => {
   try {
     const pool = await getPool1();
-    const query = `use [z_scope] Select distinct Brand as brand ,BrandId as brand_id from locationInfo where BrandStatus=1`;
+    const query = `use [z_scope] Select distinct Brand as brand ,BrandId as brand_id from locationInfo where BrandStatus=1 order by brand`;
     const result = await pool.request().query(query);
     return result.recordset;
   } catch (error) {
@@ -283,7 +283,7 @@ export const getLocationsInService= async function (req) {
     let dealer_id = req.dealer_id;
    
     const query = `
- use [z_scope]   Select locationID as location_id,location as location_name from  locationInfo where dealerID=@dealer_id and status=1
+ use [z_scope]   Select locationID as location_id,location as location_name from  locationInfo where dealerID=@dealer_id and status=1 order by location
   `;
 
     // Execute the insert query for each row
