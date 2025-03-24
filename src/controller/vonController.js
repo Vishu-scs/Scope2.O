@@ -459,7 +459,8 @@ const partFamilySale = async(req,res)=>{
 try {
         const pool = await getPool1()
         const {partnumber , brandid , dealerid , locationid}= req.body
-        const query = `DECLARE @partnumber NVARCHAR(50) = '${partnumber}',
+        const query = `use [z_scope]
+    DECLARE @partnumber NVARCHAR(50) = '${partnumber}',
      @brandid INT = ${brandid},
      @dealerid INT = ${dealerid}, 
      @locationid INT = ${locationid},
@@ -524,4 +525,19 @@ try {
 }
 
 }
-export {remarkMaster,userView,adminView,userFeedbacklog,viewLog,newRemark,viewRemark,adminFeedbackLog,partFamily,countPending,partFamilySale}
+const adminPendingView = async(req,res)=>{
+try {
+        const pool = await getPool1()
+        const {brandid,dealerid,locationid,status} = req.body
+        if(!brandid){
+            return res.status(400).json({message:`Brandid is required`})
+        }
+        const query = `use [UAD_VON] EXEC sp_GetAdminView @brandid = ${brandid}, @dealerid = ${dealerid}, @locationid = ${locationid},@Status = ${status};`
+        const result = await pool.request().query(query)
+        // console.log(result.recordset);
+        res.status(200).json({Data:result.recordset})
+} catch (error) {
+    res.status(500).json({Error:error.message})
+}
+}
+export {remarkMaster,userView,adminView,userFeedbacklog,viewLog,newRemark,viewRemark,adminFeedbackLog,partFamily,countPending,partFamilySale,adminPendingView}

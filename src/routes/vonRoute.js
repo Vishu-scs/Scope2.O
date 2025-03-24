@@ -1,5 +1,5 @@
 import Router from 'express'
-import {remarkMaster, adminView, userFeedbacklog, userView, viewLog, newRemark, viewRemark, adminFeedbackLog, partFamily, countPending, partFamilySale } from '../controller/vonController.js'
+import {remarkMaster, adminView, userFeedbacklog, userView, viewLog, newRemark, viewRemark, adminFeedbackLog, partFamily, countPending, partFamilySale, adminPendingView } from '../controller/vonController.js'
 const router = Router()
 
 router.route('/remark').post(remarkMaster)
@@ -16,4 +16,6 @@ router.route('/adminlog').post(adminFeedbackLog)
 router.route('/partfamily').post(partFamily)
 router.route('/countpending').get(countPending)
 router.route('/partfamilysale').post(partFamilySale)
+
+router.route('/adminpendingview').post(adminPendingView)
 export default router
