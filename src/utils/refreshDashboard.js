@@ -40,8 +40,7 @@ const refreshSI = async(dealerid,reqid)=>{
             // console.log(typeof(date),date)
 
             // console.log(date); //  outputs "2025-01-01"
-            let query = `use UAD_BI_SI;
-                         exec uad_si_report_3 '${dealerid}','${date}'`
+            let query = ` exec [10.10.152.16].[UAD_BI_SI].[dbo].uad_si_report_3 '${dealerid}','${date}'`
       
           const result =  await pool.request().query(query)
           console.log(`Data Refreshing SI`);
@@ -73,7 +72,7 @@ const refreshSI = async(dealerid,reqid)=>{
 const refreshBenchmarking = async(dealerid,reqid)=>{
    try {
      const pool = await getPool1()
-     let query = `use [UAD_BI] exec DRD_Adjustment_Dealer @dealerid`
+     let query = `exec [10.10.152.16].[UAD_BI].[dbo].DRD_Adjustment_Dealer @dealerid`
      let result =  await pool.request().input('dealerid',sql.Int,dealerid).query(query)
       console.log(`Data Refreshing Benchmarking`);
 
@@ -109,7 +108,7 @@ const refreshCID = async(dealerid,reqid)=>{
     if(!isGroupSettingDone){
       return res.status(400).json({message:`Group Setting Not done`})
     }
-     let query = `use UAD_BI_CID exec UAD_Cinv_Compile @dealerid`
+     let query = `exec [10.10.152.16].[UAD_BI_CID].[dbo].UAD_Cinv_Compile @dealerid`
    //   const test = `use uad_bi select * from BackupTbl`
      const result =  await pool.request().input('dealerid',sql.Int,dealerid).query(query)
       console.log(`Data Refreshing CID`);
@@ -191,7 +190,7 @@ const refreshGainerMini = async(reqid)=>{
 const refreshTOPS = async(dealerid,reqid)=>{
    try {
      const pool = await getPool1()
-     let query = `EXEC [103.153.58.143,2498].[z_scope].[dbo].Tops_vs_scs_norms_dealerwise_test1 @dealerid`
+     let query = `EXEC [10.10.152.17].[z_scope].[dbo].Tops_vs_scs_norms_dealerwise_test1 @dealerid`
    //   const test = `use uad_bi select * from BackupTbl`
      const result =  await pool.request().input('dealerid',sql.Int,dealerid).query(query)
       console.log(`Data Refreshing TOPS`)
