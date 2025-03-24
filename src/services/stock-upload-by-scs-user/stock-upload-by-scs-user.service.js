@@ -468,6 +468,8 @@ const uploadBulkStock=async(req,res)=>{
     let fileData;
     let headers;
     let rowDataArray;
+    let filteredRowData;
+    let combinedExistedData=[];
     if (brandId == 11 || brandId == 33) {
       fileData = await readExcelFileWithSubColumns(req.file.path);
       // rowData=fileData.data.splice(2);
@@ -488,6 +490,39 @@ const uploadBulkStock=async(req,res)=>{
       location:rowData1[mappedData.loc]
     }));
 
+    filteredRowData = rowData.filter((row) => {
+      // Convert qty to a number safely (handle undefined/null cases)
+      const stockQty = parseInt(row.qty, 10) ;
+      // console.log("parse int ",stockQty)
+      // Check if part_number exists and is not empty
+      const hasPartNumber = row.part_number && row.part_number.trim() !== "";
+    
+      // Normalize headers
+      const availabilityHeader = Object.keys(headers).find(
+        (header) => header.toLowerCase() === "availability"
+      );
+      const statusHeader = Object.keys(headers).find(
+        (header) => header.toLowerCase() === "status"
+      );
+    
+      // Get availability and status values
+      const availability = row[availabilityHeader]?.toLowerCase().trim();
+      const status = row[statusHeader]?.toLowerCase().trim();
+    
+      // Remove rows where part_number is null/empty and qty > 0
+      if (hasPartNumber && stockQty > 0) {
+        return true;
+      }
+    
+      // For brandId 17, 28, and 13, remove if availability is "on-hand" and status is not "good"
+      if ([17, 28, 13].includes(brandId)) {
+        if (availability === "on-hand" && status == "good") {
+          return true;
+        }
+      }
+    
+      // return true; // Keep the row if it passed all filters
+    });
     let partMasterQuery = `use z_scope select partnumber1 ,partID from part_master where brandId=@brandId`;
 
   const result = await pool
@@ -509,10 +544,10 @@ const uploadBulkStock=async(req,res)=>{
   await pool.request().input("brandId", brandId).query(deletePartMasterQuery);
 
   let updatedFilteredRowData = [];
-  let locationIds= locations.map(location => location.locationId); 
-  let query12=`use [StockUpload] SELECT tcode FROM currentStock1 WHERE locationId IN (${locationIds.join(', ')})`;
+  // let locationIds= locations.map(location => location.locationId); 
+  let query12=`use [StockUpload] SELECT tcode ,locationId FROM currentStock1 WHERE locationId IN (${locationIds.join(', ')})`;
   const res45=await pool.request().input('locations',locations).query(query12);
-  
+  let tCodeFromStock1=res45.recordset;
  
   let countPrevRecords=0;
   let insertedDataResult=[];
@@ -521,7 +556,7 @@ const uploadBulkStock=async(req,res)=>{
 
     let stockCodes=res45.recordset;
     let  StockCodes=stockCodes.map(code=>code.tcode);
-      let insertedDataQuery = `use [StockUpload] Select partNumber,partID,qty from currentStock2 where Stockcode in (${StockCodes.join(', ')})`;
+      let insertedDataQuery = `use [StockUpload] Select stockcode,partNumber,partID,qty from currentStock2 where Stockcode in (${StockCodes.join(', ')})`;
     
       let result56 = await pool
         .request()
@@ -546,7 +581,7 @@ const uploadBulkStock=async(req,res)=>{
           let deleteQuery = `use [StockUpload] delete from currentStock2  where StockCode in (${StockCodes.join(', ')})`;
           await pool
             .request()
-            .input("StockCodeS", StockCodes)
+            .input("StockCodes", StockCodes)
             .query(deleteQuery);
     
           let deleteQuery1 = `use [StockUpload] delete from currentStock1  where tcode in (${StockCodes.join(', ')})`;
@@ -571,8 +606,13 @@ const uploadBulkStock=async(req,res)=>{
         .query(deleteStockQuery);
 
     //   filteredRowData=insertedDataResult;
-
+    combinedExistedData= insertedDataResult.flatMap(a1 => 
+        tCodeFromStock1
+            .filter(a2 => a1.tcode === a2.stockcode && a1.locationId === a2.tcode)
+            .map(({ partnumber, qty, partId }) => ({ locationId: a1.locationId, partnumber, qty, partId }))
+    );
    
+    console.log("filerr row data ",combinedExistedData)
   }
 
   for (const item of filteredRowData) {
@@ -628,36 +668,37 @@ const uploadBulkStock=async(req,res)=>{
 
   // First, count the occurrences and accumulate stock_qty for each part_number
   for (const element of updatedFilteredRowData) {
-    // Assuming partMasterResult contains part_number and stock_qty
-    // console.log("element ",element)
-    if (partCountMap.has(element.part_number)) {
-      // console.log("part ",element);
-      partCountMap.set(element.part_number, {
-        partId: element.partId,
-        count: partCountMap.get(element.part_number).count + 1,
-        stockQty:
-          parseFloat(partCountMap.get(element.part_number).stockQty) +
-          parseFloat(element.qty),
-      });
-    } else {
-      partCountMap.set(element.part_number, {
-        count: 1,
-        stockQty: parseFloat(element.qty),
-        partId: element.partId,
-      });
-    }
+    const key = `${element.part_number}-${element.locationId}`; // Unique key for grouping
 
-  }
+    if (partCountMap.has(key)) {
+        const existing = partCountMap.get(key);
+        partCountMap.set(key, {
+            partId: element.partId,
+            count: existing.count + 1,
+            stockQty: existing.stockQty + parseFloat(element.qty),
+            locationId: element.locationId
+        });
+    } else {
+        partCountMap.set(key, {
+            count: 1,
+            stockQty: parseFloat(element.qty),
+            partId: element.partId,
+            locationId: element.locationId
+        });
+    }
+}
+
 
 //    console.log("part count ",partCountMap)
 
   // console.log("updated filtered data ",partCountMap)
   updatedFilteredRowData = Array.from(
     partCountMap,
-    ([partNumber, { stockQty, partId }]) => ({
+    ([partNumber, { stockQty, partId,locationId }]) => ({
       partNumber,
       qty: stockQty,
       partId: partId,
+      locationId:locationId
     })
   );
 
@@ -673,7 +714,7 @@ const uploadBulkStock=async(req,res)=>{
        for (let i = 0; i < insertedDataResult.length; i++) {
          const element = insertedDataResult[i];
          // console.log(element,partID)
-         if (element.partID === partID) {
+         if (element.partID === partID && element.locationId==item.locationId) {
            // Add the qty to the item.qty
            item.qty = qty + element.qty;
            break; // Exit the loop after the first match
@@ -682,21 +723,62 @@ const uploadBulkStock=async(req,res)=>{
      });
  }
 
- let rowCount;
+ const uniqueLocationIds = [...new Set(updatedFilteredRowData.map(item => item.locationId))];
 
-
+console.log("unique location ids ",uniqueLocationIds);
+let rowCount;
  let tCode;
    rowCount = updatedFilteredRowData?.length;
-   let insertQueryForCurrentStock1 = `use [StockUpload] insert into currentStock1(locationID,stockdate,addedby) output inserted.tcode values(@locationID,@formattedDate,@addedBy)`;
+for(let i=0;i<uniqueLocationIds.length;i++){
+  let locId=uniqueLocationIds[i];
+  let getDataByLocationId = (locationId) => {
+    return updatedFilteredRowData.filter(item => item.locationId === locId);
+};
+
+let insertQueryForCurrentStock1 = `use [StockUpload] insert into currentStock1(locationID,stockdate,addedby) output inserted.tcode values(@locationID,@formattedDate,@addedBy)`;
  
-   const result1 = await pool
-     .request()
-     .input("locationID", locationId)
-     .input("formattedDate", formattedDate)
-     .input("addedBy", addedBy)
-     .query(insertQueryForCurrentStock1);
-     StockCode = result1.recordset[0].tcode;
-  
+const result1 = await pool
+  .request()
+  .input("locationID", locId)
+  .input("formattedDate", formattedDate)
+  .input("addedBy", addedBy)
+  .query(insertQueryForCurrentStock1);
+  StockCode = result1.recordset[0].tcode;
+
+   // console.log(filteredRowData[0])
+ const values1 = getDataByLocationId.map((item) => {
+  return [
+    parseInt(StockCode, 10),
+    item["partNumber"],
+    parseFloat(item["qty"]),
+    item["partId"],
+  ];
+});
+
+try {
+  const table1 = new sql.Table("currentStock2"); // Updated table name
+  table1.create = false;
+
+  table1.columns.add("StockCode", sql.BigInt, { nullable: true });
+  table1.columns.add("PartNumber", sql.VarChar(35), { nullable: true });
+  table1.columns.add("Qty", sql.Decimal(18, 2), { nullable: true });
+  table1.columns.add("PartID", sql.Int, { nullable: true });
+  // Add rows to the table
+  values1.forEach((row) => {
+    table1.rows.add(
+      row[0],
+      row[1], // brandid
+      row[2],
+      row[3]
+    );
+  });
+  await pool.request().bulk(table1);
+} catch (error) {
+  console.error("Error during bulk insert in single upload: ", error);
+  return error; // Rethrow the error for further handling if necessary
+}
+}
+ 
 //  console.log("part not in master ",partNotInMasterArray)
  const values = partNotInMasterArray.map((item) => {
    return [
@@ -723,38 +805,7 @@ const uploadBulkStock=async(req,res)=>{
    return error; // Rethrow the error for further handling if necessary
  }
 
- // console.log(filteredRowData[0])
- const values1 = updatedFilteredRowData.map((item) => {
-   return [
-     parseInt(StockCode, 10),
-     item["partNumber"],
-     parseFloat(item["qty"]),
-     item["partId"],
-   ];
- });
 
- try {
-   const table1 = new sql.Table("currentStock2"); // Updated table name
-   table1.create = false;
-
-   table1.columns.add("StockCode", sql.BigInt, { nullable: true });
-   table1.columns.add("PartNumber", sql.VarChar(35), { nullable: true });
-   table1.columns.add("Qty", sql.Decimal(18, 2), { nullable: true });
-   table1.columns.add("PartID", sql.Int, { nullable: true });
-   // Add rows to the table
-   values1.forEach((row) => {
-     table1.rows.add(
-       row[0],
-       row[1], // brandid
-       row[2],
-       row[3]
-     );
-   });
-   await pool.request().bulk(table1);
- } catch (error) {
-   console.error("Error during bulk insert in single upload: ", error);
-   return error; // Rethrow the error for further handling if necessary
- }
  let currentCountQuery = `use [StockUpload] select sum(qty) as currentQuantSum from currentStock2 where stockCode=@StockCode`;
  let result678 = await pool
    .request()
@@ -766,7 +817,7 @@ const uploadBulkStock=async(req,res)=>{
  }
 
  let logQuery = `use [StockUpload] insert into Stock_Upload_Logs(location_id,stockCode,added_by,brand_id, stockUploadCount,operation_type,quantitySum,
-     prevStockUploadCount,prevQuantitySum,dealer_id) values(@locationId,@StockCode,@addedBy,@brandId,@rowCount,'single stock upload ',@currentQuantSum,@countPrevRecords,@quantitySumPrev,@dealerId)`;
+     prevStockUploadCount,prevQuantitySum,dealer_id) values(@locationId,@StockCode,@addedBy,@brandId,@rowCount,'bulk stock upload ',@currentQuantSum,@countPrevRecords,@quantitySumPrev,@dealerId)`;
  await pool
    .request()
    .input("StockCode", StockCode)
@@ -797,24 +848,86 @@ const getBulkRecordsInService=async(req,res)=>{
   try {
     const pool = await getPool1();
     let dealerId=req.dealer_id;
-    let locationId = req.location_id;
     let userId=req.added_by;
-    let getQuery = `select added_on,added_by,stockUploadCount,quantitySum,prevQuantitySum,prevStockUploadCount from stock_upload_logs where location_id=@locationId and added_by=@userId`;
+    let getLocationQuery=`Select locationId from locationInfo where status=1 and dealerId=@dealerId`;
+    const result13= await pool.request().input('dealerId',dealerId).query(getLocationQuery);
+    const locations=result13.recordset;
 
-    const result = await pool
-      .request()
-      .input("locationId", locationId)
-      .input("userId", userId)
-      .query(getQuery);
+    let locationIds = locations.map(row => row.locationId); // Extract locationIds from locations
 
-    return result.recordset;
+if (locationIds.length === 0) {
+  return []; // Return an empty array if no locationIds are provided
+}
+
+// Dynamically generate parameter placeholders for the IN clause
+const locationParams = locationIds.map((_, index) => `@loc${index}`).join(',');
+
+let getQuery = `
+  SELECT added_on, added_by, stockUploadCount, quantitySum, prevQuantitySum, prevStockUploadCount 
+  FROM stock_upload_logs
+  WHERE location_id IN (${locationParams}) AND added_by = @userId
+`;
+
+const request = pool.request();
+
+// Bind each locationId separately
+locationIds.forEach((id, index) => {
+  request.input(`loc${index}`, id);
+});
+
+request.input("userId", userId);
+
+const result = await request.query(getQuery);
+return result.recordset;
+
   } catch (error) {
     console.log(
       "error in stock upload service in getAll records single loc",
       error.message
     );
-    return error;
+    return {error:error};
   }
+}
+
+const getBulkDataInService=async(req,res)=>{
+    try{
+      const pool = await getPool1();
+      let dealerId=req.dealer_id;
+      let userId=req.added_by;
+      let getLocationQuery=`Select locationId from locationInfo where status=1 and dealerId=@dealerId`;
+      const result13= await pool.request().input('dealerId',dealerId).query(getLocationQuery);
+      const locations=result13.recordset;
+      let bulkUploadedData;
+      let locationIds = locations.map(row => row.locationId); // Extract locationIds from locations
+  
+      if (locationIds.length === 0) {
+        return []; // Return an empty array if no locationIds are provided
+      }
+
+      for(let i=0;i<locationIds.length;i++){
+        let locationId=locationIds[i];
+        let getTcodeQuery=`Select tcode from currentStock1 where locationId=@locationId`;
+        const res= await pool.request().input('locationId',locationId).query(getTcodeQuery);
+        tcode=res.recordset[0].tcode;
+
+        console.log("tcode ",tcode);
+        if(res.recordset.length>0){
+
+          let getDataQuery=`select partNumber,qty from currentStock2 where stockCode=@tcode`;
+           const res78=await pool.request().input('tcode',tcode).query(getDataQuery);
+           bulkUploadedData.push(res78.recordset);
+        }else{
+          break;
+        }
+      }
+
+      console.log("bulk uploaded data ",bulkUploadedData);
+      return bulkUploadedData;
+    }
+    catch(error){
+      console.log("error in get bulk data in service ",error.message);
+      return error;
+    }
 }
 export  {
     singleUploadStockInService,
@@ -822,5 +935,6 @@ export  {
     uploadStock,
     getAllRecords,
     uploadBulkStock,
+    getBulkDataInService,
     getBulkRecordsInService
 }

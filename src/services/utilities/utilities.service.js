@@ -212,7 +212,7 @@ const readExcelFile = async (filePath) => {
       row.forEach((cell, index) => {
         // If the header is not 'dealer' or 'location', remove special characters
         // console.log("cell ",cell)
-        if (headers[index].toLowerCase() !== 'dealer' && headers[index].toLowerCase() !== 'location') {
+        if (headers[index].toLowerCase() !== 'dealer' && headers[index].toLowerCase() !== 'location' && headers[index].toLowerCase() !== 'inventory location') {
           obj[headers[index]] = removeSpecialCharacters(cell);
         } else {
           obj[headers[index]] = cell; // Leave 'dealer' and 'location' as they are
