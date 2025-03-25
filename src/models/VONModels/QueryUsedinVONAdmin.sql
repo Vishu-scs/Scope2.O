@@ -112,5 +112,58 @@ JOIN part_master pm_sub
 WHERE sm.partnumber = @partnumber
   AND pm_sub.brandid = @brandid
   --------------------------------------------------------
---  Gives Part Family Description for single last
---------------------------------------------------------
+--  Gives Part Family Sale for single last
+-----------------------------------------------------
+ use [z_scope]
+ DECLARE 
+ @partnumber NVARCHAR(50) = '${partnumber}',
+ @brandid INT = ${brandid},
+ @dealerid INT = ${dealerid}, 
+ @locationid INT = ${locationid},
+  @ls INT = 6,                          -- Number of months to generate
+  @st INT = 1,                          -- Loop counter
+  @Columnsold NVARCHAR(MAX) = '',       -- Will hold the dynamic column list
+  @d1 NVARCHAR(100),                    -- Dynamic column name for _WS column
+  @d2 NVARCHAR(100),                    -- Dynamic column name for _CS column
+  @SQL NVARCHAR(MAX)
+ -----------------------------------------------------
+ -- Generate Dynamic Column List for the past 6 months
+ -----------------------------------------------------
+ WHILE @st <= @ls  
+ BEGIN  
+     SET @d1 = CONCAT(
+                 LEFT(DATENAME(MONTH, DATEADD(MONTH, -@st, GETDATE())), 3), '_',
+                 RIGHT(CONVERT(VARCHAR(4), YEAR(DATEADD(MONTH, -@st, GETDATE()))), 2), '_WS');  
+     SET @d2 = CONCAT(
+                 LEFT(DATENAME(MONTH, DATEADD(MONTH, -@st, GETDATE())), 3), '_',
+                 RIGHT(CONVERT(VARCHAR(4), YEAR(DATEADD(MONTH, -@st, GETDATE()))), 2), '_CS'); 
+     SET @Columnsold = @Columnsold + CASE WHEN @Columnsold = '' THEN '' ELSE ', ' END 
+                        + QUOTENAME(@d1) + ', ' + QUOTENAME(@d2); 
+     SET @st = @st + 1;  
+ END; 
+ -- Debugging output
+ PRINT @Columnsold
+ -- Construct the dynamic SQL
+ SET @SQL = '
+ SELECT partnumber, ' + @Columnsold + '
+ FROM dealer_sale_upload_old_td001_' + CAST(@dealerid AS NVARCHAR(10)) + '
+ WHERE locationid = @locationid 
+ AND partnumber IN ( 
+     SELECT pm.partnumber 
+     FROM part_master pm
+     WHERE pm.partnumber = @partnumber 
+     AND pm.brandid = @brandid
+     UNION ALL
+     SELECT pm_sub.partnumber 
+     FROM substitution_master sm
+     JOIN part_master pm_sub 
+         ON sm.subpartnumber = pm_sub.partnumber
+     WHERE sm.partnumber = @partnumber
+     AND pm_sub.brandid = @brandid
+ )'
+ -- Debugging output
+ PRINT @SQL
+ -- Execute the dynamic SQL using parameterization
+ EXEC sp_executesql @SQL, 
+     N'@locationid INT, @partnumber NVARCHAR(50), @brandid INT', 
+     @locationid, @partnumber, @brandid;'

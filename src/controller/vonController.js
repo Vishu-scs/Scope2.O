@@ -459,65 +459,10 @@ const partFamilySale = async(req,res)=>{
 try {
         const pool = await getPool1()
         const {partnumber , brandid , dealerid , locationid}= req.body
-        const query = `use [z_scope]
-    DECLARE @partnumber NVARCHAR(50) = '${partnumber}',
-     @brandid INT = ${brandid},
-     @dealerid INT = ${dealerid}, 
-     @locationid INT = ${locationid},
-     @ls INT = 6,                          -- Number of months to generate
-     @st INT = 1,                          -- Loop counter
-     @Columnsold NVARCHAR(MAX) = '',       -- Will hold the dynamic column list
-     @d1 NVARCHAR(100),                    -- Dynamic column name for _WS column
-     @d2 NVARCHAR(100),                    -- Dynamic column name for _CS column
-     @SQL NVARCHAR(MAX);
-    
-    -----------------------------------------------------
-    -- Generate Dynamic Column List for the past 6 months
-    -----------------------------------------------------
-    WHILE @st <= @ls  
-    BEGIN  
-        SET @d1 = CONCAT(
-                    LEFT(DATENAME(MONTH, DATEADD(MONTH, -@st, GETDATE())), 3), '_',
-                    RIGHT(CONVERT(VARCHAR(4), YEAR(DATEADD(MONTH, -@st, GETDATE()))), 2), '_WS');  
-        SET @d2 = CONCAT(
-                    LEFT(DATENAME(MONTH, DATEADD(MONTH, -@st, GETDATE())), 3), '_',
-                    RIGHT(CONVERT(VARCHAR(4), YEAR(DATEADD(MONTH, -@st, GETDATE()))), 2), '_CS');  
-    
-        SET @Columnsold = @Columnsold + CASE WHEN @Columnsold = '' THEN '' ELSE ', ' END 
-                           + QUOTENAME(@d1) + ', ' + QUOTENAME(@d2);  
-    
-        SET @st = @st + 1;  
-    END;  
-    
-    -- Debugging output
-    PRINT @Columnsold;
-    
-    -- Construct the dynamic SQL
-    SET @SQL = '
-    SELECT partnumber, ' + @Columnsold + '
-    FROM dealer_sale_upload_old_td001_' + CAST(@dealerid AS NVARCHAR(10)) + '
-    WHERE locationid = @locationid 
-    AND partnumber IN ( 
-        SELECT pm.partnumber 
-        FROM part_master pm
-        WHERE pm.partnumber = @partnumber 
-        AND pm.brandid = @brandid
-        UNION ALL
-        SELECT pm_sub.partnumber 
-        FROM substitution_master sm
-        JOIN part_master pm_sub 
-            ON sm.subpartnumber = pm_sub.partnumber
-        WHERE sm.partnumber = @partnumber
-        AND pm_sub.brandid = @brandid
-    )';
-    
-    -- Debugging output
-    PRINT @SQL;
-    
-    -- Execute the dynamic SQL using parameterization
-    EXEC sp_executesql @SQL, 
-        N'@locationid INT, @partnumber NVARCHAR(50), @brandid INT', 
-        @locationid, @partnumber, @brandid;`
+        if(!partnumber || !brandid || !dealerid || !locationid){
+            return res.status(400).json({message:`All fields are required`})
+        }        
+        const query = `use [UAD_VON] EXEC sp_partfamilysale '${partnumber}',${brandid},${dealerid},${locationid}`      
         const result = await pool.request().query(query)
         res.status(200).json({Data:result.recordset})
 } catch (error) {
@@ -540,4 +485,98 @@ try {
     res.status(500).json({Error:error.message})
 }
 }
+// const partFamilySale = async (req, res) => {
+//     try {
+//         const pool = await getPool1();
+//         const { partnumber, brandid, dealerid, locationid } = req.body;
+
+//         if (!partnumber || !brandid || !dealerid || !locationid) {
+//             return res.status(400).json({ message: "All parameters are required" });
+//         }
+
+//         console.log("Received Params:", partnumber, brandid, dealerid, locationid);
+
+//         // Construct the SQL query
+//         const query = `
+//         DECLARE 
+//         @ls INT = 6,                          -- Number of months to generate
+//         @st INT = 1,                          -- Loop counter
+//         @Columnsold NVARCHAR(MAX) = '',       -- Will hold the dynamic column list
+//         @d1 NVARCHAR(100),                    -- Dynamic column name for _WS column
+//         @d2 NVARCHAR(100),                    -- Dynamic column name for _CS column
+//         @SQL NVARCHAR(MAX);
+
+//         -----------------------------------------------------
+//         -- Generate Dynamic Column List for the past 6 months
+//         -----------------------------------------------------
+//         WHILE @st <= @ls  
+//         BEGIN  
+//             SET @d1 = CONCAT(
+//                         LEFT(DATENAME(MONTH, DATEADD(MONTH, -@st, GETDATE())), 3), '_',
+//                         RIGHT(CONVERT(VARCHAR(4), YEAR(DATEADD(MONTH, -@st, GETDATE()))), 2), '_WS');  
+//             SET @d2 = CONCAT(
+//                         LEFT(DATENAME(MONTH, DATEADD(MONTH, -@st, GETDATE())), 3), '_',
+//                         RIGHT(CONVERT(VARCHAR(4), YEAR(DATEADD(MONTH, -@st, GETDATE()))), 2), '_CS');  
+
+//             SET @Columnsold = @Columnsold + CASE WHEN @Columnsold = '' THEN '' ELSE ', ' END 
+//                             + QUOTENAME(@d1) + ', ' + QUOTENAME(@d2);  
+
+//             SET @st = @st + 1;  
+//         END;  
+
+//         -- Construct the dynamic SQL
+//         SET @SQL = '
+//         DECLARE @ResultTable TABLE (partnumber NVARCHAR(50), ' + @Columnsold + ' DECIMAL(18,2));
+
+//         INSERT INTO @ResultTable
+//         SELECT partnumber, ' + @Columnsold + '
+//         FROM dealer_sale_upload_old_td001_' + CAST(@dealerid AS NVARCHAR(10)) + '
+//         WHERE locationid = @locationid 
+//         AND partnumber IN ( 
+//             SELECT pm.partnumber 
+//             FROM part_master pm
+//             WHERE pm.partnumber = @partnumber 
+//             AND pm.brandid = @brandid
+//             UNION ALL
+//             SELECT pm_sub.partnumber 
+//             FROM substitution_master sm
+//             JOIN part_master pm_sub 
+//                 ON sm.subpartnumber = pm_sub.partnumber
+//             WHERE sm.partnumber = @partnumber
+//             AND pm_sub.brandid = @brandid
+//         );
+
+//         SELECT * FROM @ResultTable;'; -- Ensure the last statement returns data
+
+//         -- Debugging output
+//         PRINT @SQL;
+
+//         -- Execute the dynamic SQL
+//         EXEC sp_executesql @SQL, 
+//             N'@locationid INT, @partnumber NVARCHAR(50), @brandid INT', 
+//             @locationid, @partnumber, @brandid;`;
+
+//         const request = pool.request();
+//         request.input("brandid", sql.Int, brandid);
+//         request.input("dealerid", sql.Int, dealerid);
+//         request.input("locationid", sql.Int, locationid);
+//         request.input("partnumber", sql.VarChar, partnumber);
+
+//         const result = await request.query(query);
+//         console.log(result);
+
+//         // If no records found, return a 404 response
+//         if (!result.recordset || result.recordset.length === 0) {
+//             return res.status(404).json({ message: "No records found" });
+//         }
+
+//         res.status(200).json({ Data: result.recordset });
+
+//     } catch (error) {
+//         console.error("Error:", error.message);
+//         res.status(500).json({ Error: error.message });
+//     }
+// };
+
+
 export {remarkMaster,userView,adminView,userFeedbacklog,viewLog,newRemark,viewRemark,adminFeedbackLog,partFamily,countPending,partFamilySale,adminPendingView}
