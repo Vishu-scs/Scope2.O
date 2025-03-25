@@ -47,8 +47,8 @@ const allRecordsSingleUpload=async(req,res)=>{
 const bulkStockUpload=async(req,res)=>{
 
     try{
-        const result=await uploadBulkStock(req.body);
-        res.status(200).json({message:'Fetched Successfully',data:result});
+        const result=await uploadBulkStock(req);
+        res.status(200).json({message:'Upload Successfully',data:result});
     }
     catch(error){
         res.status(201).json({error:error.message})

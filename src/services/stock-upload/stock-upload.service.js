@@ -189,11 +189,11 @@ const stockUploadSingleLocation = async (req, res) => {
 
     // Loop over the partMasterResult to find a match
     for (const element of partMasterResult) {
-        // console.log("element ",element)
-      if (item.part_number === element.partnumber1.trim()) {
+      if (item.part_number.trim() === element.partnumber1.trim()) {
         // Add the partid to the item if a match is found
         item.partId = element.partID; // Directly mutate the original item
         updatedFilteredRowData.push(item);
+       
         // Reset deleteItem flag as match was found
         deleteItem = false;
         break; // Exit the loop after finding the match
@@ -201,7 +201,7 @@ const stockUploadSingleLocation = async (req, res) => {
         deleteItem = true;
       }
     }
-
+    // console.log("element ",item)
     // console.log("updated filtered row ",updatedFilteredRowData)
     // If no match was found, flag for deletion and add to partNotInMasterArray
     if (deleteItem) {
@@ -210,13 +210,14 @@ const stockUploadSingleLocation = async (req, res) => {
       const exists = partNotInMasterArray.some(
         (item1) => item1.partnumber == partnumber
       );
+
       if (!exists) {
         // console.log("exists ",partnumber)
         partNotInMasterArray.push({ partnumber: partnumber });
       }
     }
   }
-  
+  // console.log("part not in master ",partNotInMasterArray)
   // Create a map to track the occurrences of part_number and total stock_qty
   const partCountMap = new Map();
 
