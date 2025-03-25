@@ -53,13 +53,15 @@ const stockUploadSingleLocation = async (req, res) => {
   headers = fileData.headers;
 
   rowData = rowDataArray.map((rowData1) => ({
-    part_number: rowData1[mappedData.part_number]?.replace(/[^a-zA-Z0-9]/g, ""),
+    part_number: (rowData1[mappedData.part_number]).toString().replace(/[^a-zA-Z0-9]/g, ""),
     qty: parseInt(rowData1[mappedData.stock_qty],10),
     availability: rowData1["availability"],
     status: rowData1["status"],
   }));
 
-    // console.log("mapped data ",rowData)
+      // console.log("mapped data ",rowDataArray[0][mappedData.stock_qty
+      // ])
+      
   let filteredRowData = rowData.filter((row) => {
     // Convert qty to a number safely (handle undefined/null cases)
     const stockQty = parseInt(row.qty, 10) ;
@@ -251,7 +253,7 @@ const stockUploadSingleLocation = async (req, res) => {
       partId: partId,
     })
   );
-     // console.log("updated filtered data ",updatedFilteredRowData);
+      // console.log("updated filtered data ",updatedFilteredRowData);
 
   let rowCount;
   let currentDate;
@@ -311,9 +313,7 @@ const stockUploadSingleLocation = async (req, res) => {
     
         }
         
-      }
-    
-    
+      } 
   }
   // console.log("updated filtered ",updatedFilteredRowData)
   
@@ -574,7 +574,7 @@ const stockUploadMultiLocation = async (req, res) => {
       // console.log("rowdata ",mappedData);
 
       rowData = rowDataArray.map((rowData1) => ({
-        part_number: rowData1[mappedData.part_number]?.replace(/[^a-zA-Z0-9]/g, ""),
+        part_number: (rowData1[mappedData.part_number]).toString().replace(/[^a-zA-Z0-9]/g, ""),
         qty: rowData1[mappedData.stock_qty],
         availability: rowData1["availability"],
         status: rowData1["status"],
