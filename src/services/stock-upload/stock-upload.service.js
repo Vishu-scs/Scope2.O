@@ -59,7 +59,7 @@ const stockUploadSingleLocation = async (req, res) => {
     status: rowData1["status"],
   }));
 
-    console.log("mapped data ",rowData)
+    // console.log("mapped data ",rowData)
   let filteredRowData = rowData.filter((row) => {
     // Convert qty to a number safely (handle undefined/null cases)
     const stockQty = parseInt(row.qty, 10) ;
@@ -96,7 +96,7 @@ const stockUploadSingleLocation = async (req, res) => {
   
   
 
-      console.log("filtered data without null",filteredRowData)
+      // console.log("filtered data without null",filteredRowData)
 
   let partMasterQuery = `use [z_scope] select partnumber1 ,partID from part_master where brandId=@brandId`;
 
@@ -137,7 +137,7 @@ const stockUploadSingleLocation = async (req, res) => {
         .query(insertedDataQuery);
        insertedDataResult = result56.recordset;
       countPrevRecords = insertedDataResult.length;
-      console.log("previous records ",insertedDataResult)
+      // console.log("previous records ",insertedDataResult)
       // console.log("stock code ",StockCode)
       if (insertedDataResult.length != 0) {
         // console.log("countRecords inserted ",countPrevRecords)
@@ -292,7 +292,7 @@ const stockUploadSingleLocation = async (req, res) => {
         }));
       
         
-        console.log("Missing Records:", missingRecords);
+        // console.log("Missing Records:", missingRecords);
         
         updatedFilteredRowData.forEach(item => {
           if (updatedMap.has(item.partId)) {
