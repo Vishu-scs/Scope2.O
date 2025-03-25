@@ -228,8 +228,7 @@ const editDealerLocationMappingInService=async(req,res)=>{
 // Function to normalize text safely (convert to string, trim, remove extra spaces)
 function normalizeText(value) {
     return String(value || "") // Ensure it's a string
-        .trim() // Remove leading/trailing spaces
-        .replace(/\s+/g, " ") // Replace multiple spaces with a single space
+        .trim() // Remove leading/trailing spaces // Replace multiple spaces with a single space
         .replace(/\u00A0/g, " ") // Replace non-breaking spaces
         .toLowerCase(); // Convert to lowercase
 }
@@ -246,6 +245,7 @@ dealerAndLocationResult.forEach(obj => {
     dealerLocationMap.set(key, obj); // Store full object for retrieval
 });
 
+// console.log("row data ",dealerAndLocationResult)
 rowData.forEach((row, index) => {
     // Normalize row keys and values
     const normalizedItem = Object.keys(row).reduce((acc, key) => {
