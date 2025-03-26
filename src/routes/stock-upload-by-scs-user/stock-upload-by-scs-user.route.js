@@ -28,6 +28,6 @@ router.post('/all-uploadedData',singleUploadedData)
 router.post('/all-records',allRecordsSingleUpload)
 
 router.post('/bulk-upload',upload.single('excelFile'),bulkStockUpload)
-router.post('/all-records',getBulkRecords)
+router.post('/all-records-bulk',getBulkRecords)
 router.post('/all-uploaded-data',getBulkData)
 export default router;

@@ -54,7 +54,7 @@ const stockUploadSingleLocation = async (req, res) => {
 
   rowData = rowDataArray.map((rowData1) => ({
     part_number: (rowData1[mappedData.part_number]).toString().replace(/[^a-zA-Z0-9]/g, ""),
-    qty: parseInt(rowData1[mappedData.stock_qty],10),
+    qty: parseFloat(rowData1[mappedData.stock_qty]),
     availability: rowData1["availability"],
     status: rowData1["status"],
   }));
@@ -64,7 +64,7 @@ const stockUploadSingleLocation = async (req, res) => {
       
   let filteredRowData = rowData.filter((row) => {
     // Convert qty to a number safely (handle undefined/null cases)
-    const stockQty = parseInt(row.qty, 10) ;
+    const stockQty = parseFloat(row.qty) ;
     // console.log("parse int ",stockQty)
     // Check if part_number exists and is not empty
     const hasPartNumber = row.part_number && row.part_number.trim() !== "";
@@ -618,7 +618,7 @@ const stockUploadMultiLocation = async (req, res) => {
       //  console.log("mapped data ",mappedResult)
       let filteredRowData = rowData.filter((row) => {
         // Convert qty to a number safely (handle undefined/null cases)
-        const stockQty = parseInt(row.qty, 10) ;
+        const stockQty = parseFloat(row.qty) ;
         // console.log("parse int ",stockQty)
         // Check if part_number exists and is not empty
         const hasPartNumber = row.part_number && row.part_number.trim() !== "";
@@ -732,7 +732,7 @@ const combinedData = updatedFilteredRowData1.map(item => {
     const match = insertedDataResult.find(additional => additional.partNumber === item.partNumber);
   
     if (match) {
-      item.qty = (parseInt(item.qty) + match.qty).toString();  // Ensure qty is a string
+      item.qty = (parseFloat(item.qty) + match.qty).toString();  // Ensure qty is a string
     }
   
     return item;
@@ -1002,7 +1002,7 @@ const getPartNotInMasterMultiLocationInService=async(req,res)=>{
     
           try {
             // Fetch brandId for the location
-            const getBrandQuery = `use [z_scope] SELECT brandId,location FROM locationInfo WHERE locationId = @locationId`;
+            const getBrandQuery = `use [z_scope] SELECT brandId,location,brand FROM locationInfo WHERE locationId = @locationId`;
             const result = await pool
               .request()
               .input('locationId', locationId)
@@ -1010,6 +1010,7 @@ const getPartNotInMasterMultiLocationInService=async(req,res)=>{
     
             let brandId = result.recordset[0].brandId;
             let locationName=result.recordset[0].location;
+            let brandName=result.recordset[0].brand
     
             // Fetch partnumbers based on brandId
             const getQuery = `use [StockUpload] SELECT partnumber FROM part_not_in_master WHERE brand_id = @brandId`;
@@ -1020,7 +1021,7 @@ const getPartNotInMasterMultiLocationInService=async(req,res)=>{
     
             // Prepare data to store in the Excel file
             const locationData = result1.recordset.map(record => ({
-              Location: locationName,
+              Brand: brandName,
               PartNumber: record.partnumber,
             }));
     
@@ -1033,7 +1034,7 @@ const getPartNotInMasterMultiLocationInService=async(req,res)=>{
             const tempBuffer = xlsx.write(wb, { bookType: 'xlsx', type: 'buffer' });
     
             // Add the buffer directly to the ZIP file
-            archive.addBuffer(tempBuffer, `part_not_in_master_${locationName}.xlsx`);
+            archive.addBuffer(tempBuffer, `part_not_in_master_${brandName}.xlsx`);
           } catch (error) {
             console.error('Error in get part not in master:', error.message);
           }
