@@ -1,5 +1,7 @@
 import {getPool1} from '../db/db.js'
 import sql from 'mssql'
+import xlsx from 'xlsx'
+import fs from 'fs'
 import { partBrandCheck } from '../utils/vonHelper.js'
 
 
@@ -442,7 +444,7 @@ try {
         const result = await pool.request()
         .input('brandid',sql.Int,brandid)
         .input('dealerid',sql.Int,dealerid)
-        
+
         .input('locationid',sql.Int,locationid)
         .input('status',sql.Int,status)
         .query(query)
@@ -452,7 +454,24 @@ try {
     res.status(500).json({Error:error.message})
 }
 }
+const dealerUpload = async(req,res)=>{
+    
+    const {id} = req.body
+    if(!id){
+        res.status(400).json({message:`Body is required`})
+    }
+    if (!req.file || req.file.length === 0) {
+        return res.status(400).json({ message: "No files received" });
+    }
+    const filePath = req.file.path;
+    const workbook = xlsx.readFile(filePath);
+    const sheetName = workbook.SheetNames[0]; // Read the first sheet
+    let data = xlsx.utils.sheet_to_json(workbook.Sheets[sheetName]);
+    console.log("Data : ", data[0]);
+     fs.unlinkSync(filePath)
+     res.send(data)
+}
 
 
 
-export {remarkMaster,userView,adminView,userFeedbacklog,viewLog,newRemark,viewRemark,adminFeedbackLog,partFamily,countPending,partFamilySale,adminPendingView}
+export {remarkMaster,userView,adminView,userFeedbacklog,viewLog,newRemark,viewRemark,adminFeedbackLog,partFamily,countPending,partFamilySale,adminPendingView,dealerUpload}

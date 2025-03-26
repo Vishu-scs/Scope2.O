@@ -5,13 +5,36 @@ const dataValidator = async (dealerid) => {
   const pool = await getPool1();
 
   try {
-    const dynamicTable = `z_scope..dealer_sale_upload1_td001_${dealerid}`;
-    const query = `
-    WITH data AS (
-    SELECT li.locationid, dsm.NonMovingSale
-    FROM z_scope..Dealer_Setting_Master dsm
-    JOIN locationinfo li ON li.LocationID = dsm.locationid
-    WHERE dsm.dealerid = @dealerid AND li.Status = 1
+    const dynamicTable = `[10.10.152.16].z_scope.dbo.dealer_sale_upload1_td001_${dealerid}`;
+//     const query = `
+//     WITH data AS (
+//     SELECT li.locationid, dsm.NonMovingSale
+//     FROM z_scope..Dealer_Setting_Master dsm
+//     JOIN locationinfo li ON li.LocationID = dsm.locationid
+//     WHERE dsm.dealerid = @dealerid AND li.Status = 1
+// )
+// SELECT li.location, d.NonMovingSale
+// FROM data d
+// LEFT JOIN ${dynamicTable} ds 
+//     ON d.locationid = ds.locationid 
+//     AND (
+//         (d.NonMovingSale = 'BS' AND ds.SaleType IN ('WS', 'CS'))
+//         OR (d.NonMovingSale = 'WS' AND ds.SaleType = 'WS')
+//         OR (d.NonMovingSale = 'CS' AND ds.SaleType = 'CS')
+//     )
+//     AND ds.StockDateMonth = MONTH(DATEADD(MONTH, -1, GETDATE()))  
+//     AND ds.StockDateYear = 
+//         CASE 
+//             WHEN MONTH(GETDATE()) = 1 THEN YEAR(GETDATE()) - 1
+//             ELSE YEAR(GETDATE()) 
+//         END
+// JOIN locationinfo li ON d.LocationID = li.LocationID AND li.Status = 1
+// WHERE ds.locationid IS NULL;`
+const query = `WITH data AS (
+  SELECT li.locationid, dsm.NonMovingSale
+  FROM [10.10.152.16].z_scope.dbo.Dealer_Setting_Master dsm -- Direct server reference
+  JOIN [10.10.152.16].z_scope.dbo.locationinfo li ON li.LocationID = dsm.locationid
+  WHERE dsm.dealerid = @dealerid AND li.Status = 1
 )
 SELECT li.location, d.NonMovingSale
 FROM data d
@@ -28,7 +51,7 @@ LEFT JOIN ${dynamicTable} ds
             WHEN MONTH(GETDATE()) = 1 THEN YEAR(GETDATE()) - 1
             ELSE YEAR(GETDATE()) 
         END
-JOIN locationinfo li ON d.LocationID = li.LocationID AND li.Status = 1
+JOIN [10.10.152.16].z_scope.dbo.locationinfo li ON d.LocationID = li.LocationID AND li.Status = 1
 WHERE ds.locationid IS NULL;`
 
 const result = await pool.request()
@@ -99,8 +122,10 @@ if ((firstRecord.Status === 5 || firstRecord.Status === 6 || firstRecord.Status 
 }
 if(firstRecord.Status === 0 ){
   // console.log("Scheduling not allowed.");
+console.log(`Previous Dashboard has status = ${firstRecord.Status}`);
 return false;
 }
+// return false
   } catch (error) {
     console.error('Error in checkisAlreadyScheduled:', error.message);
     throw error;
@@ -142,14 +167,14 @@ const checkisUserValid = async(addedby)=>{
 }
 const checkGroupSetting = async(dealerid)=>{
   const pool = await getPool1()
-  let query = `select count(dealerid) from locationinfo where dealerid =  @dealerid `
+  let query = `select count(dealerid) from [10.10.152.16].z_scope..locationinfo where dealerid =  @dealerid `
   let result = await pool.request().input('dealerid',sql.Int,dealerid).query(query)
   if(result.recordset.count = 1 ){
     return true
   }
   else{
     query = ` use z_scope 
-                  SELECT  CASE WHEN EXISTS (SELECT 1 FROM Dealer_setting_master WHERE dealerid = @dealerid AND locationid = 0) THEN 'YES'
+                  SELECT  CASE WHEN EXISTS (SELECT 1 FROM [10.10.152.16].z_scope..Dealer_setting_master WHERE dealerid = @dealerid AND locationid = 0) THEN 'YES'
                   ELSE 'NO' END AS CID;`
    result = await pool.request().input('dealerid',sql.Int,dealerid).query(query)
   if(result.recordset[0].CID === 'YES'){
