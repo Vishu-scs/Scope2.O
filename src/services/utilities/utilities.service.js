@@ -9,7 +9,7 @@ export const getBrands = async () => {
     return result.recordset;
   } catch (error) {
     console.error("Error executing SQL query to fetch brands:", error.message);
-    return error;
+    return {error:error};
   }
 };
 
@@ -35,7 +35,7 @@ export const uploadFile = async (req) => {
       "Error executing SQL query to in upload File:",
       error.message
     );
-    return error;
+    return {error:error};
   }
 };
 
@@ -260,7 +260,7 @@ return result.recordset
   }
   catch(err){
       console.log("error in fetching data",err.message);
-      await transaction.rollback(); 
+      return {error:error};
   }
   
 }
@@ -298,7 +298,7 @@ export const getLocationsInService= async function (req) {
     return result.recordset;
   } catch (err) {
     console.log("error in fetching data in utilities service in location method", err.message);
-    await transaction.rollback();
+    return {error:error};
   }
 }
 export { readExcelFile, readExcelFileWithSubColumns };
