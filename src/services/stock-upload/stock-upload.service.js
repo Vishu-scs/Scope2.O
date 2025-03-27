@@ -52,6 +52,14 @@ const stockUploadSingleLocation = async (req, res) => {
   }
   headers = fileData.headers;
 
+  const isValid = Object.entries(mappedData)
+  .filter(([key]) => key != 'stock_type' && key!= 'loc') // Exclude stock_type
+  .every(([, value]) => headers.includes(value));
+
+    // console.log(isValid);
+    if(!isValid){
+      return {headerNotPresent:true}
+    }
   rowData = rowDataArray.map((rowData1) => ({
     part_number: (rowData1[mappedData.part_number]).toString().replace(/[^a-zA-Z0-9]/g, ""),
     qty: parseFloat(rowData1[mappedData.stock_qty]),
@@ -59,6 +67,7 @@ const stockUploadSingleLocation = async (req, res) => {
     status: rowData1["status"],
   }));
 
+  // console.log("mapped data ",mappedData)
       // console.log("mapped data ",rowDataArray[0][mappedData.stock_qty
       // ])
       
@@ -127,7 +136,7 @@ const stockUploadSingleLocation = async (req, res) => {
  let  StockCode=res45?.recordset[0]?.tcode;
   let countPrevRecords=0;
   let insertedDataResult=[];
-
+//  console.log("current stock1 length ",res45.recordset.length)
   let quantitySumPrev = 0;
   if(res45.recordset.length>0){
 
@@ -354,7 +363,7 @@ if(partNotInMasterArray.length!=0){
     await pool.request().bulk(table);
   } catch (error) {
     console.error("Error during bulk insert: part not in master", error);
-    return error; // Rethrow the error for further handling if necessary
+    return {error:error};// Rethrow the error for further handling if necessary
   }
 }
   
@@ -390,7 +399,7 @@ if(partNotInMasterArray.length!=0){
     await pool.request().bulk(table1);
   } catch (error) {
     console.error("Error during bulk insert in single upload: ", error);
-    return error; // Rethrow the error for further handling if necessary
+    return {error:error};// Rethrow the error for further handling if necessary
   }
   let currentCountQuery = `use [StockUpload] select sum(qty) as currentQuantSum from currentStock2 where stockCode=@StockCode`;
   let result678 = await pool
@@ -446,7 +455,7 @@ const getPartNotInMasterSingleLocationInService = async (req, res) => {
     return result1.recordset;
   } catch (error) {
     console.log("error in service ", error.message);
-    return error;
+    return {error:error};
   }
 };
 
@@ -469,7 +478,7 @@ const getAllRecordsSingleLocation = async (req, res) => {
       "error in stock upload service in getAll records single loc",
       error.message
     );
-    return error;
+    return {error:error};
   }
 };
 
@@ -492,7 +501,7 @@ const getUploadedDataSingleLocationInService = async (req, res) => {
       "error in  stock upload service get upload data single location",
       error.message
     );
-    return error;
+    return {error:error};
   }
 };
 
@@ -531,8 +540,7 @@ const stockUploadMultiLocation = async (req, res) => {
     if (mappingResult.recordset.length == 0) {
       return { mappingNotPresent: true };
     }
-
-    let mappedData = mappingResult.recordset[0];
+    
     // console.log("mapped data in stock upload multi location ",mappedData);
     let partMasterQuery = `use [z_scope] select partnumber1 ,partID from part_master where brandId=@brandId`;
 
@@ -573,7 +581,16 @@ const stockUploadMultiLocation = async (req, res) => {
       }
       headers = fileData.headers;
       // console.log("rowdata ",mappedData);
+      let mappedData = mappingResult.recordset[0];
 
+      const isValid = Object.entries(mappedData)
+    .filter(([key]) => key != 'stock_type' && key!= 'loc') // Exclude stock_type
+    .every(([, value]) => headers.includes(value));
+  
+      // console.log(isValid);
+      if(!isValid){
+        return {headerNotPresent:true}
+      }
       rowData = rowDataArray.map((rowData1) => ({
         part_number: (rowData1[mappedData.part_number]).toString().replace(/[^a-zA-Z0-9]/g, ""),
         qty: rowData1[mappedData.stock_qty],
@@ -721,7 +738,7 @@ const stockUploadMultiLocation = async (req, res) => {
           partId: partId,
         })
       );
- console.log("updated filtered data ",updatedFilteredRowData1);
+ //console.log("updated filtered data ",updatedFilteredRowData1);
 const combinedData = updatedFilteredRowData1.map(item => {
     // Check if part_number exists
     if (!item.partNumber) {
@@ -819,7 +836,7 @@ const combinedData = updatedFilteredRowData1.map(item => {
         await pool.request().bulk(table1);
       } catch (error) {
         console.error("Error during bulk insert:", error);
-        return error; // Rethrow the error for further handling if necessary
+        return {error:error}; // Rethrow the error for further handling if necessary
       }
       let currentCountQuery = `use [StockUpload] select sum(qty) as currentQuantSum from currentStock2 where stockCode=@tCode`;
       let result678 = await pool
@@ -871,14 +888,14 @@ prevStockUploadCount,prevQuantitySum) values(@locationId,@tCode,@addedBy,@brandI
         await pool.request().bulk(table);
       } catch (error) {
         console.error("Error during bulk insert: part not in master", error);
-        return error; // Rethrow the error for further handling if necessary
+        return {error:error}; // Rethrow the error for further handling if necessary
       }
     }
    
    
   } catch (error) {
     console.log("error ", error.message);
-    return error;
+    return {error:error};
   }
 };
 
@@ -907,7 +924,7 @@ const getAllRecordsMultiLocation=async (req,res)=>{
           "error in stock upload service in getAll records multi loc",
           error.message
         );
-        return error;
+        return {error:error};
       }
 }
 
@@ -964,6 +981,7 @@ const getUploadedDataMultiLocationInService=async(req,res)=>{
             archive.addBuffer(tempBuffer, `uploadedData_${locationName}.xlsx`);
           } catch (error) {
             console.error('Error in get uploaded data in multi:', error.message);
+            return {error:error};
           }
         }
     
@@ -981,7 +999,7 @@ const getUploadedDataMultiLocationInService=async(req,res)=>{
     
       } catch (error) {
         console.error('Error in service multilocation :', error.message);
-        throw new Error('Error generating ZIP file');
+        return {error:error};
       }
    
 }
@@ -1037,6 +1055,7 @@ const getPartNotInMasterMultiLocationInService=async(req,res)=>{
             archive.addBuffer(tempBuffer, `part_not_in_master_${brandName}.xlsx`);
           } catch (error) {
             console.error('Error in get part not in master:', error.message);
+            return {error:error};
           }
         }
     
@@ -1054,7 +1073,7 @@ const getPartNotInMasterMultiLocationInService=async(req,res)=>{
     
       } catch (error) {
         console.error('Error in part not in master multi loc service:', error.message);
-        throw new Error('Error generating ZIP file');
+        return {error:error};
       }
 }
 

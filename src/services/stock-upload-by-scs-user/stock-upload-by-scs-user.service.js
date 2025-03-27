@@ -45,7 +45,14 @@ const singleUploadStockInService = async (req, res) => {
     }
 
     headers = fileData.headers;
-
+    const isValid = Object.entries(mappedData)
+    .filter(([key]) => key != 'stock_type' && key!= 'loc') // Exclude stock_type
+    .every(([, value]) => headers.includes(value));
+  
+      // console.log(isValid);
+      if(!isValid){
+        return {headerNotPresent:true}
+      }
     rowData = rowDataArray.map((rowData1) => ({
       part_number: rowData1[mappedData.part_number]
         .toString()
@@ -334,7 +341,7 @@ const singleUploadStockInService = async (req, res) => {
       await pool.request().bulk(table);
     } catch (error) {
       console.error("Error during bulk insert: part not in master", error);
-      return error; // Rethrow the error for further handling if necessary
+      return {error:error}; // Rethrow the error for further handling if necessary
     }
 
     // console.log(filteredRowData[0])
@@ -368,7 +375,7 @@ const singleUploadStockInService = async (req, res) => {
       await pool.request().bulk(table1);
     } catch (error) {
       console.error("Error during bulk insert in single upload: ", error);
-      return error; // Rethrow the error for further handling if necessary
+      return {error:error}; // Rethrow the error for further handling if necessary
     }
     let currentCountQuery = `use [StockUpload] select sum(qty) as currentQuantSum from currentStock2 where stockCode=@StockCode`;
     let result678 = await pool
@@ -403,7 +410,7 @@ const singleUploadStockInService = async (req, res) => {
     };
   } catch (error) {
     console.log("error ", error.message);
-    return error;
+    return {error:error};
   }
 };
 
@@ -471,7 +478,7 @@ const uploadBulkStock = async (req, res) => {
     const formattedDate = date1.toISOString().split("T")[0]; // Extract the date portion of the ISO string
     // console.log(typeof formattedDate,formattedDate);
     //   console.log("date ",date)
-    let getLocationsQuery = `select locationId from locationInfo where dealerId=@dealerId`;
+    let getLocationsQuery = `use [z_scope] select locationId from locationInfo where dealerId=@dealerId`;
     let res56 = await pool
       .request()
       .input("dealerId", dealerId)
@@ -519,6 +526,15 @@ const uploadBulkStock = async (req, res) => {
     }
 
     headers = fileData.headers;
+    const isValid = Object.entries(mappedData)
+    .filter(([key]) => key != 'stock_type') // Exclude stock_type
+    .every(([, value]) => headers.includes(value));
+  
+      // console.log(isValid);
+      if(!isValid){
+        return {headerNotPresent:true}
+      }
+
     let result567;
     rowData = rowDataArray.map((rowData1) => ({
       part_number: rowData1[mappedData.part_number]
@@ -579,7 +595,7 @@ const uploadBulkStock = async (req, res) => {
       .request()
       .input("brandId", brandId)
       .query(getPartNumberQuery);
-    partNotInMasterArray = res123.recordset;
+    partNotInMasterArray = res123?.recordset;
 
     let deletePartMasterQuery = `use [StockUpload] delete from part_not_in_master where brand_id=@brandId`;
     await pool.request().input("brandId", brandId).query(deletePartMasterQuery);
@@ -603,15 +619,15 @@ const uploadBulkStock = async (req, res) => {
     });
     const res45 = await request.query(query12);
 
-     let tCodeFromStock1 = res45.recordset;
+     let tCodeFromStock1 = res45?.recordset;
     // console.log("tcode from stock 1 598", tCodeFromStock1);
-    let stockCodes = res45.recordset;
+    let stockCodes = res45?.recordset;
     StockCodes = stockCodes.map((code) => parseInt(code.tcode, 10));
    //console.log("stockcodes 606 line", StockCodes);
     let countPrevRecords = 0;
     let insertedDataResult = [];
     let quantitySumPrev = 0;
-    if (res45.recordset.length > 0) {
+    if (res45?.recordset?.length > 0) {
       
       let insertedDataQuery = `
       USE [StockUpload]; 
@@ -654,7 +670,7 @@ const uploadBulkStock = async (req, res) => {
          result567 = await request.query(quanitySumQuery);
        // console.log("quantity sum 642", result567.recordset);
 
-        if (result567.recordset.length != 0) {
+        if (result567?.recordset?.length != 0) {
           quantitySumPrev = result567.recordset[0]?.QuantSum || 0;
           // console.log("quant sum prev ",quantitySumPrev);
 //           let deleteQuery = `
@@ -803,7 +819,7 @@ const uploadBulkStock = async (req, res) => {
       })
     );
 
-  // console.log("updated filtered row 792 ",updatedFilteredRowData)
+   //console.log("updated filtered row 792 ",updatedFilteredRowData)
     if (insertedDataResult.length != 0) {
        
       updatedFilteredRowData.forEach((item) => {
@@ -831,15 +847,17 @@ const uploadBulkStock = async (req, res) => {
         updatedFilteredRowData.map((item) => [item.partId, item])
       );
 
+    //  console.log("combined ",combinedExistedData)
       // Check for missing records in insertedDataResult
       const missingRecords = combinedExistedData
         .filter((item) => !updatedMap.has(item.partId))
         .map((item) => ({
-          partNumber: item.partNumber,
+          part_number: item.part_number,
           partId: item.partId,
           qty: item.qty, // Convert qty to an integer
         }));
 
+      //  console.log("updated ",updatedMap)
       // console.log("Missing Records:", missingRecords);
 
       updatedFilteredRowData.forEach((item) => {
@@ -864,14 +882,16 @@ const uploadBulkStock = async (req, res) => {
       ...new Set(updatedFilteredRowData.map((item) => item.locationId)),
     ];
 
-    // console.log("unique location ids ", uniqueLocationIds);
+   // console.log("updatedFiltered row ",updatedFilteredRowData)
+   // console.log("unique location ids ", uniqueLocationIds);
     let rowCount;
 
     rowCount = updatedFilteredRowData?.length;
     let combinedLogsLocationWise = [];
     let currentStockCode;
-for (let i = 0; i < uniqueLocationIds.length; i++) {
+for(let i = 0; i < uniqueLocationIds.length; i++){
   let locId = uniqueLocationIds[i];
+ // console.log("updated ",updatedFilteredRowData)
   let filteredData = updatedFilteredRowData.filter(
     (item) => item.locationId === locId
   );
@@ -889,7 +909,7 @@ for (let i = 0; i < uniqueLocationIds.length; i++) {
         .input("formattedDate", formattedDate)
         .input("addedBy", addedBy)
         .query(insertQueryForCurrentStock1);
-      currentStockCode = result1.recordset[0].tcode;
+      currentStockCode = result1?.recordset[0]?.tcode;
 
       //  console.log(currentStockCode)
       const values1 = filteredData.map((item) => {
@@ -900,7 +920,7 @@ for (let i = 0; i < uniqueLocationIds.length; i++) {
           item["partId"],
         ];
       });
-// console.log("values ",values1);
+ //console.log("values ",values1);
       try {
         await pool.request();
         await pool.request().query('use [StockUpload]') 
@@ -923,7 +943,7 @@ for (let i = 0; i < uniqueLocationIds.length; i++) {
         await pool.request().bulk(table1);
       } catch (error) {
         console.error("Error during bulk insert in single upload: ", error);
-        return error; // Rethrow the error for further handling if necessary
+        return {error:error}; // Rethrow the error for further handling if necessary
       }
   
 
@@ -935,8 +955,8 @@ let currentQuantSum = 0;
       .input("currentStockCode", currentStockCode)
       .query(currentCountQuery);
   //  console.log("currentQuant ",currentQuantSum)
-    if (result678.recordset.length != 0) {
-      currentQuantSum = result678.recordset[0]?.currentQuantSum;
+    if (result678?.recordset?.length != 0) {
+      currentQuantSum = result678?.recordset[0]?.currentQuantSum;
     }
     // console.log("currentquant ",currentQuantSum)
     let logQuery = `use [StockUpload] insert into Stock_Upload_Logs(Stockcode,location_id,dealer_id,added_by,brand_id, stockUploadCount,operation_type,quantitySum,
@@ -963,6 +983,7 @@ let currentQuantSum = 0;
       )
   }
 
+ // console.log("partNotInMaster ",partNotInMasterArray)
   if(partNotInMasterArray.length!=0){
     //  console.log("part not in master ",partNotInMasterArray)
     const values = partNotInMasterArray.map((item) => {
@@ -995,36 +1016,45 @@ let currentQuantSum = 0;
 
    }
 
-   if (result567.recordset.length != 0) {
+   if (result567?.recordset?.length != 0) {
     // console.log("quant sum prev ",quantitySumPrev);
-    let deleteQuery = `
-USE [StockUpload]; 
-DELETE FROM currentStock2 
-WHERE StockCode IN (${StockCodes.map((_, i) => `@code${i}`).join(", ")})
-`;
-
-    let deleteQuery1 = `
-USE [StockUpload]; 
-DELETE FROM currentStock1 
-WHERE tcode IN (${StockCodes.map((_, i) => `@code${i}`).join(", ")})
-`;
-
-    let request = pool.request();
-    StockCodes.forEach((code, i) => {
-      request.input(`code${i}`, sql.Int, code); // Assuming StockCode and tcode are strings
-    });
-
-    // Execute the queries
-    await request.query(deleteQuery);
-    await request.query(deleteQuery1);
+   // console.log("stock codes ",stockCodes)
+    if(stockCodes.length!=0){
+      let deleteQuery = `
+      USE [StockUpload]; 
+      DELETE FROM currentStock2 
+      WHERE StockCode IN (${StockCodes.map((_, i) => `@code${i}`).join(", ")})
+      `;
+     // console.log("stock codes ",stockCodes)
+      
+          let deleteQuery1 = `
+      USE [StockUpload]; 
+      DELETE FROM currentStock1 
+      WHERE tcode IN (${StockCodes.map((_, i) => `@code${i}`).join(", ")})
+      `;
+    //  console.log("stock codes ",stockCodes)
+          let request = await pool.request();
+          StockCodes.forEach((code, i) => {
+            //console.log(" code ",code)
+            request.input(`code${i}`, sql.Int, code); // Assuming StockCode and tcode are strings
+          });
+      
+      
+          // Execute the queries
+          await request.query(deleteQuery);
+          await request.query(deleteQuery1);
+    }
+   
   }
+
+ 
     return combinedLogsLocationWise;
   } catch (error) {
     console.log(
       "error in bulk stock upload method in by user service ",
       error.message
     );
-    return error;
+    return {error:error};
   }
 };
 
