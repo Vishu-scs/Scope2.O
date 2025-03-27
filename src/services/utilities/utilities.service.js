@@ -4,7 +4,7 @@ import fs from "fs";
 export const getBrands = async () => {
   try {
     const pool = await getPool1();
-    const query = `use [z_scope] Select distinct Brand as brand ,BrandId as brand_id from locationInfo where BrandStatus=1`;
+    const query = `use [z_scope] Select distinct Brand as brand ,BrandId as brand_id from locationInfo where BrandStatus=1 order by brand`;
     const result = await pool.request().query(query);
     return result.recordset;
   } catch (error) {
@@ -195,13 +195,7 @@ const readExcelFile = async (filePath) => {
     // console.log('Data:', data.slice(1)); // Data excluding headers
 
     // return { headers, data: data.slice(1) };
-    fs.unlink(filePath, (err) => {
-      if (err) {
-        console.error("Error deleting the file:", err);
-      } else {
-        console.log("File deleted successfully:", filePath);
-      }
-    });
+   
    
     // let resultData = data.slice(1).map((row) => {
     //   let obj = {};
@@ -217,15 +211,26 @@ const readExcelFile = async (filePath) => {
       let obj = {};
       row.forEach((cell, index) => {
         // If the header is not 'dealer' or 'location', remove special characters
-        if (headers[index].toLowerCase() !== 'dealer' && headers[index].toLowerCase() !== 'location') {
-          obj[headers[index]] = removeSpecialCharacters(cell);
-        } else {
-          obj[headers[index]] = cell; // Leave 'dealer' and 'location' as they are
-        }
+        // console.log("cell ",cell)
+        // if (headers[index].toLowerCase() !== 'dealer' && headers[index].toLowerCase() !== 'location' && headers[index].toLowerCase() !== 'inventory location') {
+        //   obj[headers[index]] = removeSpecialCharacters(cell);
+        // } else {
+        //   obj[headers[index]] = cell; // Leave 'dealer' and 'location' as they are
+        // }
+        obj[headers[index]]=cell;
+
       });
       return obj;
     });
-    
+
+    // console.log("result data ",resultData)
+    fs.unlink(filePath, (err) => {
+      if (err) {
+        console.error("Error deleting the file:", err);
+      } else {
+        console.log("File deleted successfully:", filePath);
+      }
+    });
       // console.log("header ",resultData)
     return { headers: headers, data: resultData };
   } catch (error) {
@@ -280,7 +285,7 @@ export const getLocationsInService= async function (req) {
     let dealer_id = req.dealer_id;
    
     const query = `
- use [z_scope]   Select locationID as location_id,location as location_name from  locationInfo where dealerID=@dealer_id and status=1
+ use [z_scope]   Select locationID as location_id,location as location_name from  locationInfo where dealerID=@dealer_id and status=1 order by location
   `;
 
     // Execute the insert query for each row

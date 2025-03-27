@@ -52,40 +52,62 @@ const stockUploadSingleLocation = async (req, res) => {
   }
   headers = fileData.headers;
 
+  const isValid = Object.entries(mappedData)
+  .filter(([key]) => key != 'stock_type' && key!= 'loc') // Exclude stock_type
+  .every(([, value]) => headers.includes(value));
+
+    // console.log(isValid);
+    if(!isValid){
+      return {headerNotPresent:true}
+    }
   rowData = rowDataArray.map((rowData1) => ({
-    part_number: rowData1[mappedData.part_number],
-    qty: rowData1[mappedData.stock_qty],
+    part_number: (rowData1[mappedData.part_number]).toString().replace(/[^a-zA-Z0-9]/g, ""),
+    qty: parseFloat(rowData1[mappedData.stock_qty]),
     availability: rowData1["availability"],
     status: rowData1["status"],
   }));
 
-  //  console.log("mapped data ",mappedResult)
+  // console.log("mapped data ",mappedData)
+      // console.log("mapped data ",rowDataArray[0][mappedData.stock_qty
+      // ])
+      
   let filteredRowData = rowData.filter((row) => {
-    // Normalize all headers to lowercase
+    // Convert qty to a number safely (handle undefined/null cases)
+    const stockQty = parseFloat(row.qty) ;
+    // console.log("parse int ",stockQty)
+    // Check if part_number exists and is not empty
+    const hasPartNumber = row.part_number && row.part_number.trim() !== "";
+  
+    // Normalize headers
     const availabilityHeader = Object.keys(headers).find(
       (header) => header.toLowerCase() === "availability"
     );
     const statusHeader = Object.keys(headers).find(
       (header) => header.toLowerCase() === "status"
     );
-
-    if (brandId === 17 || brandId === 28 || brandId === 13) {
-      // Ensure part_number is not empty, stock_qty is >= 0,
-      // Availability is not 'on-hand', or status is 'good'
-      return (
-        (row.part_number || row.part_number >= 0) &&
-        ((row[availabilityHeader] &&
-          row[availabilityHeader].toLowerCase().trim() !== "on-hand") ||
-          (row[statusHeader] &&
-            row[statusHeader].toLowerCase().trim() === "good"))
-      );
-    } else {
-      // For other brands, just check part_number and stock_qty
-      return row.part_number || row.qty >= 0;
+  
+    // Get availability and status values
+    const availability = row[availabilityHeader]?.toLowerCase().trim();
+    const status = row[statusHeader]?.toLowerCase().trim();
+  
+    // Remove rows where part_number is null/empty and qty > 0
+    if (hasPartNumber && stockQty > 0) {
+      return true;
     }
+  
+    // For brandId 17, 28, and 13, remove if availability is "on-hand" and status is not "good"
+    if ([17, 28, 13].includes(brandId)) {
+      if (availability === "on-hand" && status !== "good") {
+        return true;
+      }
+    }
+  
+    // return true; // Keep the row if it passed all filters
   });
+  
+  
 
-  //   console.log("filtered data without null",filteredRowData.length)
+      // console.log("filtered data without null",filteredRowData)
 
   let partMasterQuery = `use [z_scope] select partnumber1 ,partID from part_master where brandId=@brandId`;
 
@@ -114,7 +136,7 @@ const stockUploadSingleLocation = async (req, res) => {
  let  StockCode=res45?.recordset[0]?.tcode;
   let countPrevRecords=0;
   let insertedDataResult=[];
-
+//  console.log("current stock1 length ",res45.recordset.length)
   let quantitySumPrev = 0;
   if(res45.recordset.length>0){
 
@@ -126,7 +148,8 @@ const stockUploadSingleLocation = async (req, res) => {
         .query(insertedDataQuery);
        insertedDataResult = result56.recordset;
       countPrevRecords = insertedDataResult.length;
-      console.log("stock code ",StockCode)
+      // console.log("previous records ",insertedDataResult)
+      // console.log("stock code ",StockCode)
       if (insertedDataResult.length != 0) {
         // console.log("countRecords inserted ",countPrevRecords)
         // StockCode = insertedDataResult[0].StockCode;
@@ -136,7 +159,7 @@ const stockUploadSingleLocation = async (req, res) => {
           .request()
           .input("StockCode", StockCode)
           .query(quanitySumQuery);
-        console.log("quantity sum ",result567.recordset)
+        // console.log("quantity sum ",result567.recordset)
         if (result567.recordset.length != 0) {
           quantitySumPrev = result567.recordset[0].QuantSum;
           // console.log("quant sum prev ",quantitySumPrev);
@@ -175,11 +198,11 @@ const stockUploadSingleLocation = async (req, res) => {
 
     // Loop over the partMasterResult to find a match
     for (const element of partMasterResult) {
-        // console.log("element ",element)
-      if (item.part_number === element.partnumber1.trim()) {
+      if (item.part_number.trim() === element.partnumber1.trim()) {
         // Add the partid to the item if a match is found
         item.partId = element.partID; // Directly mutate the original item
         updatedFilteredRowData.push(item);
+       
         // Reset deleteItem flag as match was found
         deleteItem = false;
         break; // Exit the loop after finding the match
@@ -187,7 +210,7 @@ const stockUploadSingleLocation = async (req, res) => {
         deleteItem = true;
       }
     }
-
+    // console.log("element ",item)
     // console.log("updated filtered row ",updatedFilteredRowData)
     // If no match was found, flag for deletion and add to partNotInMasterArray
     if (deleteItem) {
@@ -202,8 +225,7 @@ const stockUploadSingleLocation = async (req, res) => {
       }
     }
   }
-
-  
+  // console.log("part not in master ",partNotInMasterArray)
   // Create a map to track the occurrences of part_number and total stock_qty
   const partCountMap = new Map();
 
@@ -240,7 +262,7 @@ const stockUploadSingleLocation = async (req, res) => {
       partId: partId,
     })
   );
-    //  console.log("updated filtered data ",updatedFilteredRowData);
+      // console.log("updated filtered data ",updatedFilteredRowData);
 
   let rowCount;
   let currentDate;
@@ -250,49 +272,59 @@ const stockUploadSingleLocation = async (req, res) => {
   
   formattedDate = currentDate.toISOString().split("T")[0]; // Outputs: '2025-03-08'
   if (insertedDataResult.length != 0) {
-    // console.log("countRecords inserted ",countPrevRecords)
-    // StockCode = insertedDataResult[0].StockCode;
-    // let quanitySumQuery = `Select sum(qty) as QuantSum from currentStock2 where StockCode=@StockCode`;
-
-    // let result567 = await pool
-    //   .request()
-    //   .input("StockCode", StockCode)
-    //   .query(quanitySumQuery);
-
-    // if (result567.recordset.length != 0) {
-    //   quantitySumPrev = result567.recordset[0].QuantSum;
-    // //    console.log("quant sum prev ",quantitySumPrev);
-    //   let deleteQuery = `delete from currentStock2  where StockCode=@stockCode`;
-    //   await pool
-    //     .request()
-    //     .input("stockCode", insertedDataResult[0].StockCode)
-    //     .query(deleteQuery);
-
-    //   let deleteQuery1 = `delete from currentStock1  where tcode=@stockCode`;
-    //   await pool
-    //     .request()
-    //     .input("stockCode", insertedDataResult[0].StockCode)
-    //     .query(deleteQuery1);
-    // }
-
-    // console.log("updatedFiltered ",updatedFilteredRowData)
-    updatedFilteredRowData.forEach((item) => {
-      // console.log(item)
-      let partID = item.partId;
-      let qty = item.qty;
-
-      for (let i = 0; i < insertedDataResult.length; i++) {
-        const element = insertedDataResult[i];
-        // console.log(element,partID)
-        if (element.partID === partID) {
-          // Add the qty to the item.qty
-          item.qty = qty + element.qty;
-          break; // Exit the loop after the first match
-        }
-      }
-    });
     
+    
+      updatedFilteredRowData.forEach((item) => {
+        // console.log(item)
+        let partID = item.partId;
+        let qty = item.qty;
+  
+        for (let i = 0; i < insertedDataResult.length; i++) {
+          const element = insertedDataResult[i];
+          // console.log(element,partID)
+          if (element.partID === partID) {
+            // Add the qty to the item.qty
+            item.qty = qty + element.qty;
+             // Exit the loop after the first match
+          }
+        }
+      });
+
+      if(updatedFilteredRowData.length<insertedDataResult.length){
+        const updatedMap = new Map(updatedFilteredRowData.map(item => [item.partId, item]));
+
+        // Check for missing records in insertedDataResult
+        const missingRecords = insertedDataResult
+        .filter(item => !updatedMap.has(item.partID))
+        .map(item => ({
+          partNumber: item.partNumber,
+                partId: item.partID,
+          qty: item.qty // Convert qty to an integer
+        }));
+      
+        
+        // console.log("Missing Records:", missingRecords);
+        
+        updatedFilteredRowData.forEach(item => {
+          if (updatedMap.has(item.partId)) {
+              const existing = insertedDataResult.find(el => el.partID === item.partId);
+              // if (existing) {
+              //     item.qty = parseInt(existing.qty, 10);
+              // }
+              item.qty=parseFloat(item.qty)
+          }
+      });
+      
+        
+        // Add missing records to updatedFilteredRowData
+        for(let j=0;j<missingRecords.length;j++){
+          updatedFilteredRowData.push(missingRecords[j]);
+    
+        }
+        
+      } 
   }
+  // console.log("updated filtered ",updatedFilteredRowData)
   
     rowCount = updatedFilteredRowData?.length;
     let insertQueryForCurrentStock1 = `use [StockUpload] insert into currentStock1(locationID,stockdate,addedby) output inserted.tcode values(@locationID,@formattedDate,@addedBy)`;
@@ -304,19 +336,9 @@ const stockUploadSingleLocation = async (req, res) => {
       .input("addedBy", addedBy)
       .query(insertQueryForCurrentStock1);
       StockCode = result1.recordset[0].tcode;
-   
-
-      
-    // tCode = result178.recordset[0].tcode;
   
-
-  // Log the updated partCountObj
-  //  console.log(updatedFilteredRowData);
-
- 
-
-  //  console.log("tCode ",tCode)
 //  console.log("part not in master ",partNotInMasterArray)
+if(partNotInMasterArray.length!=0){
   const values = partNotInMasterArray.map((item) => {
     return [
       parseInt(brandId, 10), // Ensure brandId is an integer
@@ -340,8 +362,10 @@ const stockUploadSingleLocation = async (req, res) => {
     await pool.request().bulk(table);
   } catch (error) {
     console.error("Error during bulk insert: part not in master", error);
-    return error; // Rethrow the error for further handling if necessary
+    return {error:error};// Rethrow the error for further handling if necessary
   }
+}
+  
 
   // console.log(filteredRowData[0])
   const values1 = updatedFilteredRowData.map((item) => {
@@ -374,7 +398,7 @@ const stockUploadSingleLocation = async (req, res) => {
     await pool.request().bulk(table1);
   } catch (error) {
     console.error("Error during bulk insert in single upload: ", error);
-    return error; // Rethrow the error for further handling if necessary
+    return {error:error};// Rethrow the error for further handling if necessary
   }
   let currentCountQuery = `use [StockUpload] select sum(qty) as currentQuantSum from currentStock2 where stockCode=@StockCode`;
   let result678 = await pool
@@ -430,7 +454,7 @@ const getPartNotInMasterSingleLocationInService = async (req, res) => {
     return result1.recordset;
   } catch (error) {
     console.log("error in service ", error.message);
-    return error;
+    return {error:error};
   }
 };
 
@@ -453,7 +477,7 @@ const getAllRecordsSingleLocation = async (req, res) => {
       "error in stock upload service in getAll records single loc",
       error.message
     );
-    return error;
+    return {error:error};
   }
 };
 
@@ -476,7 +500,7 @@ const getUploadedDataSingleLocationInService = async (req, res) => {
       "error in  stock upload service get upload data single location",
       error.message
     );
-    return error;
+    return {error:error};
   }
 };
 
@@ -504,7 +528,7 @@ const stockUploadMultiLocation = async (req, res) => {
       .input("dealerId", dealerId)
       .query(brandQuery);
     let brandId = brandRes.recordset[0].brandId;
-    // console.log("brandid in stock upload multi location ",brandId)
+    //  console.log("brandid in stock upload multi location ",brandId)
     let getMappingQuery = `use [StockUpload] select part_number,stock_qty,loc,stock_type from stock_upload_mapping where brand_id=@brandId and stock_type='current'`;
 
     const mappingResult = await pool
@@ -515,8 +539,7 @@ const stockUploadMultiLocation = async (req, res) => {
     if (mappingResult.recordset.length == 0) {
       return { mappingNotPresent: true };
     }
-
-    let mappedData = mappingResult.recordset[0];
+    
     // console.log("mapped data in stock upload multi location ",mappedData);
     let partMasterQuery = `use [z_scope] select partnumber1 ,partID from part_master where brandId=@brandId`;
 
@@ -556,13 +579,24 @@ const stockUploadMultiLocation = async (req, res) => {
         rowDataArray = fileData.data;
       }
       headers = fileData.headers;
+      // console.log("rowdata ",mappedData);
+      let mappedData = mappingResult.recordset[0];
 
+      const isValid = Object.entries(mappedData)
+    .filter(([key]) => key != 'stock_type' && key!= 'loc') // Exclude stock_type
+    .every(([, value]) => headers.includes(value));
+  
+      // console.log(isValid);
+      if(!isValid){
+        return {headerNotPresent:true}
+      }
       rowData = rowDataArray.map((rowData1) => ({
-        part_number: rowData1[mappedData.part_number],
+        part_number: (rowData1[mappedData.part_number]).toString().replace(/[^a-zA-Z0-9]/g, ""),
         qty: rowData1[mappedData.stock_qty],
         availability: rowData1["availability"],
         status: rowData1["status"],
       }));
+      // console.log("rowData ",rowData)
 
       let query12=`use [StockUpload] Select tcode from currentStock1 where locationId=@locationId`;
   const res45=await pool.request().input('locationId',locationId).query(query12);
@@ -599,30 +633,39 @@ const stockUploadMultiLocation = async (req, res) => {
 
       //  console.log("mapped data ",mappedResult)
       let filteredRowData = rowData.filter((row) => {
-        // Normalize all headers to lowercase
+        // Convert qty to a number safely (handle undefined/null cases)
+        const stockQty = parseFloat(row.qty) ;
+        // console.log("parse int ",stockQty)
+        // Check if part_number exists and is not empty
+        const hasPartNumber = row.part_number && row.part_number.trim() !== "";
+      
+        // Normalize headers
         const availabilityHeader = Object.keys(headers).find(
           (header) => header.toLowerCase() === "availability"
         );
         const statusHeader = Object.keys(headers).find(
           (header) => header.toLowerCase() === "status"
         );
-
-        if (brandId === 17 || brandId === 28 || brandId === 13) {
-          // Ensure part_number is not empty, stock_qty is >= 0,
-          // Availability is not 'on-hand', or status is 'good'
-          return (
-            (row.part_number || row.part_number >= 0) &&
-            ((row[availabilityHeader] &&
-              row[availabilityHeader].toLowerCase().trim() !== "on-hand") ||
-              (row[statusHeader] &&
-                row[statusHeader].toLowerCase().trim() === "good"))
-          );
-        } else {
-          // For other brands, just check part_number and stock_qty
-          return row.part_number || row.qty >= 0;
+      
+        // Get availability and status values
+        const availability = row[availabilityHeader]?.toLowerCase().trim();
+        const status = row[statusHeader]?.toLowerCase().trim();
+      
+        // Remove rows where part_number is null/empty and qty > 0
+        if (hasPartNumber && stockQty > 0) {
+          return true;
         }
+      
+        // For brandId 17, 28, and 13, remove if availability is "on-hand" and status is not "good"
+        if ([17, 28, 13].includes(brandId)) {
+          if (availability === "on-hand" && status === "good") {
+            return true;
+          }
+        }
+      
+        // return true; // Keep the row if it passed all filters
       });
-    //    console.log("filtered data in multi loc ",filteredRowData)
+       // console.log("filtered data in multi loc ",filteredRowData)
   
       for (const item of filteredRowData) {
         let deleteItem = false; // Flag to determine if the item should be deleted
@@ -694,7 +737,7 @@ const stockUploadMultiLocation = async (req, res) => {
           partId: partId,
         })
       );
-// console.log("updated filtered data ",updatedFilteredRowData1);
+ //console.log("updated filtered data ",updatedFilteredRowData1);
 const combinedData = updatedFilteredRowData1.map(item => {
     // Check if part_number exists
     if (!item.partNumber) {
@@ -705,13 +748,45 @@ const combinedData = updatedFilteredRowData1.map(item => {
     const match = insertedDataResult.find(additional => additional.partNumber === item.partNumber);
   
     if (match) {
-      item.qty = (parseInt(item.qty) + match.qty).toString();  // Ensure qty is a string
+      item.qty = (parseFloat(item.qty) + match.qty).toString();  // Ensure qty is a string
     }
   
     return item;
   });
+  if(combinedData.length<insertedDataResult.length){
+    const updatedMap = new Map(combinedData.map(item => [item.partId, item]));
 
-//   console.log("location id combine data ",locationId,combinedData)
+    console.log("updatedMap",insertedDataResult)
+    // Check for missing records in insertedDataResult
+    const missingRecords = insertedDataResult
+    .filter(item => !updatedMap.has(item.partID))
+    .map(item => ({
+      partNumber: item.partNumber,
+            partId: item.partID,
+      qty: item.qty // Convert qty to an integer
+    }));
+  
+    
+    console.log("Missing Records:", missingRecords);
+    
+    combinedData.forEach(item => {
+      if (updatedMap.has(item.partId)) {
+          const existing = insertedDataResult.find(el => el.partID === item.partId);
+          // if (existing) {
+          //     item.qty = parseInt(existing.qty, 10);
+          // }
+          item.qty=parseFloat(item.qty)
+      }
+  });
+    
+    // Add missing records to updatedFilteredRowData
+    for(let j=0;j<missingRecords.length;j++){
+      combinedData.push(missingRecords[i]);
+
+    }
+  }
+
+  // console.log("location id combine data ",locationId,combinedData)
    // Create a map to track the occurrences of part_number and total stock_qty
    let updatedFilteredRowData2=[];
    updatedFilteredRowData2 =combinedData;
@@ -760,7 +835,7 @@ const combinedData = updatedFilteredRowData1.map(item => {
         await pool.request().bulk(table1);
       } catch (error) {
         console.error("Error during bulk insert:", error);
-        return error; // Rethrow the error for further handling if necessary
+        return {error:error}; // Rethrow the error for further handling if necessary
       }
       let currentCountQuery = `use [StockUpload] select sum(qty) as currentQuantSum from currentStock2 where stockCode=@tCode`;
       let result678 = await pool
@@ -788,35 +863,38 @@ prevStockUploadCount,prevQuantitySum) values(@locationId,@tCode,@addedBy,@brandI
     }
 
     // console.log("part not in master in multi stock upload ",partNotInMasterArray)
-
-    const values = partNotInMasterArray.map((item) => {
-      return [
-        parseInt(brandId, 10), // Ensure brandId is an integer
-        item["partnumber"],
-      ];
-    });
-    try {
-      await pool.request().query('use stockupload')
-      const table = new sql.Table("part_not_in_master"); // Updated table name
-      table.create = false;
-
-      table.columns.add("brand_id", sql.Int, { nullable: true });
-      table.columns.add("partnumber", sql.VarChar(100), { nullable: true });
-      // Add rows to the table
-      values.forEach((row) => {
-        table.rows.add(
-          row[0],
-          row[1] // brandid
-        );
+    if(partNotInMasterArray.length!=0){
+      const values = partNotInMasterArray.map((item) => {
+        return [
+          parseInt(brandId, 10), // Ensure brandId is an integer
+          item["partnumber"],
+        ];
       });
-      await pool.request().bulk(table);
-    } catch (error) {
-      console.error("Error during bulk insert: part not in master", error);
-      return error; // Rethrow the error for further handling if necessary
+      try {
+        await pool.request().query('use stockupload')
+        const table = new sql.Table("part_not_in_master"); // Updated table name
+        table.create = false;
+  
+        table.columns.add("brand_id", sql.Int, { nullable: true });
+        table.columns.add("partnumber", sql.VarChar(100), { nullable: true });
+        // Add rows to the table
+        values.forEach((row) => {
+          table.rows.add(
+            row[0],
+            row[1] // brandid
+          );
+        });
+        await pool.request().bulk(table);
+      } catch (error) {
+        console.error("Error during bulk insert: part not in master", error);
+        return {error:error}; // Rethrow the error for further handling if necessary
+      }
     }
+   
+   
   } catch (error) {
     console.log("error ", error.message);
-    return error;
+    return {error:error};
   }
 };
 
@@ -845,7 +923,7 @@ const getAllRecordsMultiLocation=async (req,res)=>{
           "error in stock upload service in getAll records multi loc",
           error.message
         );
-        return error;
+        return {error:error};
       }
 }
 
@@ -902,6 +980,7 @@ const getUploadedDataMultiLocationInService=async(req,res)=>{
             archive.addBuffer(tempBuffer, `uploadedData_${locationName}.xlsx`);
           } catch (error) {
             console.error('Error in get uploaded data in multi:', error.message);
+            return {error:error};
           }
         }
     
@@ -919,7 +998,7 @@ const getUploadedDataMultiLocationInService=async(req,res)=>{
     
       } catch (error) {
         console.error('Error in service multilocation :', error.message);
-        throw new Error('Error generating ZIP file');
+        return {error:error};
       }
    
 }
@@ -940,7 +1019,7 @@ const getPartNotInMasterMultiLocationInService=async(req,res)=>{
     
           try {
             // Fetch brandId for the location
-            const getBrandQuery = `use [z_scope] SELECT brandId,location FROM locationInfo WHERE locationId = @locationId`;
+            const getBrandQuery = `use [z_scope] SELECT brandId,location,brand FROM locationInfo WHERE locationId = @locationId`;
             const result = await pool
               .request()
               .input('locationId', locationId)
@@ -948,6 +1027,7 @@ const getPartNotInMasterMultiLocationInService=async(req,res)=>{
     
             let brandId = result.recordset[0].brandId;
             let locationName=result.recordset[0].location;
+            let brandName=result.recordset[0].brand
     
             // Fetch partnumbers based on brandId
             const getQuery = `use [StockUpload] SELECT partnumber FROM part_not_in_master WHERE brand_id = @brandId`;
@@ -958,7 +1038,7 @@ const getPartNotInMasterMultiLocationInService=async(req,res)=>{
     
             // Prepare data to store in the Excel file
             const locationData = result1.recordset.map(record => ({
-              Location: locationName,
+              Brand: brandName,
               PartNumber: record.partnumber,
             }));
     
@@ -971,9 +1051,10 @@ const getPartNotInMasterMultiLocationInService=async(req,res)=>{
             const tempBuffer = xlsx.write(wb, { bookType: 'xlsx', type: 'buffer' });
     
             // Add the buffer directly to the ZIP file
-            archive.addBuffer(tempBuffer, `part_not_in_master_${locationName}.xlsx`);
+            archive.addBuffer(tempBuffer, `part_not_in_master_${brandName}.xlsx`);
           } catch (error) {
             console.error('Error in get part not in master:', error.message);
+            return {error:error};
           }
         }
     
@@ -991,7 +1072,7 @@ const getPartNotInMasterMultiLocationInService=async(req,res)=>{
     
       } catch (error) {
         console.error('Error in part not in master multi loc service:', error.message);
-        throw new Error('Error generating ZIP file');
+        return {error:error};
       }
 }
 
