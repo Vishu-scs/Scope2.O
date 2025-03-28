@@ -45,21 +45,44 @@ const singleUploadStockInService = async (req, res) => {
     }
 
     headers = fileData.headers;
-    const isValid = Object.entries(mappedData)
-    .filter(([key]) => key != 'stock_type' && key!= 'loc') // Exclude stock_type
-    .every(([, value]) => headers.includes(value));
-  
-      // console.log(isValid);
-      if(!isValid){
-        return {headerNotPresent:true}
-      }
-    rowData = rowDataArray.map((rowData1) => ({
-      part_number: rowData1[mappedData.part_number]
-        .toString()
-        .replace(/[^a-zA-Z0-9]/g, ""),
-      qty: rowData1[mappedData.stock_qty],
-      availability: rowData1["availability"],
-      status: rowData1["status"],
+   // console.log("headers ",headers)
+    const requiredBrandIds = [17, 28, 13];
+    const normalizedHeaders = headers.map(header => header.trim().toLowerCase());
+const isValid = Object.entries(mappedData)
+    .filter(([key]) => key !== 'stock_type' && key !== 'loc') // Exclude stock_type and loc
+    .every(([, value]) => headers.includes(value)); // Check if all values exist in headers
+
+// If brandId is 17, 28, or 13, check for "availability" and "status" in headers
+if (requiredBrandIds.includes(brandId)) {
+    const requiredFields = ["availability", "status"];
+    const hasRequiredFields = requiredFields.every(field => normalizedHeaders.includes(field));
+
+    if (!hasRequiredFields) {
+        return { headerNotPresent: true };
+    }
+}
+
+// Return false if general validation fails
+if (!isValid) {
+    return { headerNotPresent: true };
+}
+
+      rowData = rowDataArray.map((rowData1) => ({
+        part_number: rowData1[mappedData.part_number] != null 
+            ? rowData1[mappedData.part_number].toString().replace(/[^a-zA-Z0-9]/g, "") 
+            : "", 
+        
+        qty: rowData1[mappedData.stock_qty] != null 
+            ? parseFloat(rowData1[mappedData.stock_qty]) || 0 
+            : 0, 
+        
+        availability: rowData1["availability"] != null 
+            ? rowData1["availability"].toString().trim() 
+            : "", 
+        
+        status: rowData1["status"] != null 
+            ? rowData1["status"].toString().trim() 
+            : "",
     }));
 
     // console.log("mapped data ",mappedData)
@@ -166,13 +189,13 @@ const singleUploadStockInService = async (req, res) => {
             .query(deleteQuery1);
         }
       }
-      let deleteCodeQuery = `use [StockUpload] delete from currentStock1 where tcode=@stockCode`;
-      await pool.request().input("StockCode", StockCode).query(deleteCodeQuery);
-      let deleteStockQuery = `use [StockUpload] delete from currentStock2 where stockcode=@stockCode`;
-      let result569 = await pool
-        .request()
-        .input("StockCode", StockCode)
-        .query(deleteStockQuery);
+      // let deleteCodeQuery = `use [StockUpload] delete from currentStock1 where tcode=@stockCode`;
+      // await pool.request().input("StockCode", StockCode).query(deleteCodeQuery);
+      // let deleteStockQuery = `use [StockUpload] delete from currentStock2 where stockcode=@stockCode`;
+      // let result569 = await pool
+      //   .request()
+      //   .input("StockCode", StockCode)
+      //   .query(deleteStockQuery);
       //   filteredRowData=insertedDataResult;
     }
     //   console.log("filtered row data ",filteredRowData.length,insertedDataResult.length)
@@ -315,7 +338,7 @@ const singleUploadStockInService = async (req, res) => {
       .input("formattedDate", formattedDate)
       .input("addedBy", addedBy)
       .query(insertQueryForCurrentStock1);
-    StockCode = result1.recordset[0].tcode;
+   let StockCodeCurrent = result1.recordset[0].tcode;
 
     //  console.log("part not in master ",partNotInMasterArray)
     const values = partNotInMasterArray.map((item) => {
@@ -347,7 +370,7 @@ const singleUploadStockInService = async (req, res) => {
     // console.log(filteredRowData[0])
     const values1 = updatedFilteredRowData.map((item) => {
       return [
-        parseInt(StockCode, 10),
+        parseInt(StockCodeCurrent, 10),
         item["partNumber"],
         parseFloat(item["qty"]),
         item["partId"],
@@ -377,10 +400,11 @@ const singleUploadStockInService = async (req, res) => {
       console.error("Error during bulk insert in single upload: ", error);
       return {error:error}; // Rethrow the error for further handling if necessary
     }
+
     let currentCountQuery = `use [StockUpload] select sum(qty) as currentQuantSum from currentStock2 where stockCode=@StockCode`;
     let result678 = await pool
       .request()
-      .input("StockCode", StockCode)
+      .input("StockCode", StockCodeCurrent)
       .query(currentCountQuery);
     let currentQuantSum = 0;
     if (result678.recordset.length != 0) {
@@ -391,7 +415,7 @@ const singleUploadStockInService = async (req, res) => {
       prevStockUploadCount,prevQuantitySum,dealer_id) values(@locationId,@StockCode,@addedBy,@brandId,@rowCount,'single stock upload ',@currentQuantSum,@countPrevRecords,@quantitySumPrev,@dealerId)`;
     await pool
       .request()
-      .input("StockCode", StockCode)
+      .input("StockCode", StockCodeCurrent)
       .input("addedBy", addedBy)
       .input("currentQuantSum", currentQuantSum)
       .input("brandId", brandId)
@@ -402,6 +426,39 @@ const singleUploadStockInService = async (req, res) => {
       .input("dealerId", dealerId)
       .query(logQuery);
 
+      if (insertedDataResult.length != 0) {
+        // console.log("countRecords inserted ",countPrevRecords)
+        // StockCode = insertedDataResult[0].StockCode;
+        let quanitySumQuery = `use [StockUpload] Select sum(qty) as QuantSum from currentStock2 where StockCode=@StockCode`;
+
+        let result567 = await pool
+          .request()
+          .input("StockCode", StockCode)
+          .query(quanitySumQuery);
+        // console.log("quantity sum ",result567.recordset)
+        if (result567.recordset.length != 0) {
+          quantitySumPrev = result567.recordset[0].QuantSum;
+          // console.log("quant sum prev ",quantitySumPrev);
+          let deleteQuery = `use [StockUpload] delete from currentStock2  where StockCode=@stockCode`;
+          await pool
+            .request()
+            .input("stockCode", insertedDataResult[0].StockCode)
+            .query(deleteQuery);
+
+          let deleteQuery1 = `use [StockUpload] delete from currentStock1  where tcode=@stockCode`;
+          await pool
+            .request()
+            .input("stockCode", insertedDataResult[0].StockCode)
+            .query(deleteQuery1);
+        }
+      }
+      let deleteCodeQuery = `use [StockUpload] delete from currentStock1 where tcode=@stockCode`;
+      await pool.request().input("StockCode", StockCode).query(deleteCodeQuery);
+      let deleteStockQuery = `use [StockUpload] delete from currentStock2 where stockcode=@stockCode`;
+      let result569 = await pool
+        .request()
+        .input("StockCode", StockCode)
+        .query(deleteStockQuery);
     return {
       currentSumQuantity: currentQuantSum,
       prevSumQuantity: quantitySumPrev,
@@ -526,25 +583,46 @@ const uploadBulkStock = async (req, res) => {
     }
 
     headers = fileData.headers;
-    const isValid = Object.entries(mappedData)
-    .filter(([key]) => key != 'stock_type') // Exclude stock_type
-    .every(([, value]) => headers.includes(value));
-  
-      // console.log(isValid);
-      if(!isValid){
-        return {headerNotPresent:true}
-      }
+    const requiredBrandIds = [17, 28, 13];
+    const normalizedHeaders = headers.map(header => header.trim().toLowerCase());
+const isValid = Object.entries(mappedData)
+    .filter(([key]) => key !== 'stock_type' && key !== 'loc') // Exclude stock_type and loc
+    .every(([, value]) => headers.includes(value)); // Check if all values exist in headers
+
+// If brandId is 17, 28, or 13, check for "availability" and "status" in headers
+if (requiredBrandIds.includes(brandId)) {
+    const requiredFields = ["availability", "status"];
+    const hasRequiredFields = requiredFields.every(field => normalizedHeaders.includes(field));
+
+    if (!hasRequiredFields) {
+        return { headerNotPresent: true };
+    }
+}
+
+// Return false if general validation fails
+if (!isValid) {
+    return { headerNotPresent: true };
+}
+
 
     let result567;
     rowData = rowDataArray.map((rowData1) => ({
-      part_number: rowData1[mappedData.part_number]
-      .toString()
-      .replace(/[^a-zA-Z0-9]/g, ""),
-      qty: rowData1[mappedData.stock_qty],
-      availability: rowData1["availability"],
-      status: rowData1["status"],
-      location: rowData1[mappedData.loc],
-    }));
+      part_number: rowData1[mappedData.part_number] != null 
+          ? rowData1[mappedData.part_number].toString().replace(/[^a-zA-Z0-9]/g, "") 
+          : "", 
+      
+      qty: rowData1[mappedData.stock_qty] != null 
+          ? parseFloat(rowData1[mappedData.stock_qty]) || 0 
+          : 0, 
+      
+      availability: rowData1["availability"] != null 
+          ? rowData1["availability"].toString().trim() 
+          : "", 
+      
+      status: rowData1["status"] != null 
+          ? rowData1["status"].toString().trim() 
+          : "",
+  }));
     // console.log("row data ",rowData)
 
     filteredRowData = rowData.filter((row) => {
