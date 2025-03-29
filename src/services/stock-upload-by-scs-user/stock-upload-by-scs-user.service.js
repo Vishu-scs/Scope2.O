@@ -46,13 +46,13 @@ const singleUploadStockInService = async (req, res) => {
 
     headers = fileData.headers;
    // console.log("headers ",headers)
-    const requiredBrandIds = [17, 28, 13];
+    const requiredBrandIds = [17, 28];
     const normalizedHeaders = headers.map(header => header.trim().toLowerCase());
 const isValid = Object.entries(mappedData)
     .filter(([key]) => key !== 'stock_type' && key !== 'loc') // Exclude stock_type and loc
     .every(([, value]) => headers.includes(value)); // Check if all values exist in headers
 
-// If brandId is 17, 28, or 13, check for "availability" and "status" in headers
+// If brandId is 17, 28, check for "availability" and "status" in headers
 if (requiredBrandIds.includes(brandId)) {
     const requiredFields = ["availability", "status"];
     const hasRequiredFields = requiredFields.every(field => normalizedHeaders.includes(field));
@@ -110,8 +110,8 @@ if (!isValid) {
         return true;
       }
 
-      // For brandId 17, 28, and 13, remove if availability is "on-hand" and status is not "good"
-      if ([17, 28, 13].includes(brandId)) {
+      // For brandId 17, 28, remove if availability is "on-hand" and status is not "good"
+      if ([17, 28].includes(brandId)) {
         if (availability === "on-hand" && status == "good") {
           return true;
         }
@@ -207,7 +207,7 @@ if (!isValid) {
       // Loop over the partMasterResult to find a match
       for (const element of partMasterResult) {
         //  console.log("element ",item,element)
-        if (item.part_number === element.partnumber1.trim()) {
+        if (item.part_number.trim().toLowerCase() === element.partnumber1.trim().toLowerCase()) {
           // Add the partid to the item if a match is found
           item.partId = element.partID; // Directly mutate the original item
           updatedFilteredRowData.push(item);
@@ -583,13 +583,13 @@ const uploadBulkStock = async (req, res) => {
     }
 
     headers = fileData.headers;
-    const requiredBrandIds = [17, 28, 13];
+    const requiredBrandIds = [17, 28];
     const normalizedHeaders = headers.map(header => header.trim().toLowerCase());
 const isValid = Object.entries(mappedData)
     .filter(([key]) => key !== 'stock_type' && key !== 'loc') // Exclude stock_type and loc
     .every(([, value]) => headers.includes(value)); // Check if all values exist in headers
 
-// If brandId is 17, 28, or 13, check for "availability" and "status" in headers
+// If brandId is 17, 28 check for "availability" and "status" in headers
 if (requiredBrandIds.includes(brandId)) {
     const requiredFields = ["availability", "status"];
     const hasRequiredFields = requiredFields.every(field => normalizedHeaders.includes(field));
@@ -649,8 +649,8 @@ if (!isValid) {
         return true;
       }
 
-      // For brandId 17, 28, and 13, remove if availability is "on-hand" and status is not "good"
-      if ([17, 28, 13].includes(brandId)) {
+      // For brandId 17, 28 remove if availability is "on-hand" and status is not "good"
+      if ([17, 28].includes(brandId)) {
         if (availability === "on-hand" && status == "good") {
           return true;
         }
@@ -820,7 +820,7 @@ if (!isValid) {
       // Loop over the partMasterResult to find a match
       for (const element of partMasterResult) {
         // console.log("element ",element)
-        if (item.part_number === element.partnumber1.trim()) {
+        if (item.part_number.trim().toLowerCase() === element.partnumber1.trim().toLowerCase()) {
           // Add the partid to the item if a match is found
           item.partId = element.partID; // Directly mutate the original item
           // updatedFilteredRowData.push(item);
