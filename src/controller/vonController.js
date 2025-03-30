@@ -3,6 +3,7 @@ import sql from 'mssql'
 import xlsx from 'xlsx'
 import fs from 'fs'
 import { partBrandCheck } from '../utils/vonHelper.js'
+import { model } from './MasterApiController.js'
 
 
 const remarkMaster = async (req,res)=>{
@@ -126,6 +127,7 @@ const userFeedbacklog = async (req,res)=>{
    if(!partCheck){
         return res.status(400).json({Error:`PartID is Invalid`})
    }
+
     const dynamicTable = `[UAD_VON]..UAD_VON_SPMFeedback_${brandid}`
     // console.log(dynamicTable);
     
@@ -310,7 +312,7 @@ const adminFeedbackLog = async (req,res)=>{
             return res.status(400).json({message:`All Fields are required and Feedbackid cannot be null`})
         }
         
-        const dynamicTable = `[UAD_VON]..UAD_VON_AdminFeedback_${brandid}`
+         const dynamicTable = `[UAD_VON]..UAD_VON_AdminFeedback_${brandid}`
         const userdynamicTable = `[UAD_VON]..UAD_VON_SPMFeedback_${brandid}`
         let PreviousAdminFBID = null;
         // console.log(PreviousAdminFBID);
@@ -374,10 +376,10 @@ try {
         }
         // console.log(partnumber);
         
-        const query = `use [z_scope] 
-                        select pm.partnumber1, (CASE WHEN pm.BrandID = sm.BrandID AND pm.PartNumber = sm.PartNumber THEN sm.SubPartNumber ELSE pm.PartNumber END)as LatestPartNumber , pm.partdesc, pm.category,pm.landedcost from substitution_master sm 
-                        join part_master pm on pm.brandid = sm.brandid and pm.partnumber1 = sm.partnumber1
-                        where sm.subpartnumber = (select distinct subpartnumber1 from substitution_master where partnumber1 = @partnumber)`
+        const query = ` use [z_scope] 
+                        select pm.partnumber1, (CASE WHEN pm.BrandID = sm.BrandID AND pm.PartNumber = sm.PartNumber THEN sm.SubPartNumber ELSE pm.PartNumber END)as LatestPartNumber , pm.partdesc, pm.category,pm.landedcost from [10.10.152.16].[z_scope].dbo.substitution_master sm 
+                        join [10.10.152.16].[z_scope].dbo.part_master pm on pm.brandid = sm.brandid and pm.partnumber1 = sm.partnumber1
+                        where sm.subpartnumber = (select distinct subpartnumber1 from [10.10.152.16].[z_scope].dbo.substitution_master where partnumber1 = @partnumber)`
         const result = await pool.request().input('partnumber',sql.VarChar,partnumber).query(query)
         // console.log(result.recordset);
         
@@ -425,7 +427,7 @@ try {
         if(!partnumber || !brandid || !dealerid || !locationid){
             return res.status(400).json({message:`All fields are required`})
         }        
-        const query = `use [UAD_VON] EXEC sp_partfamilysale '${partnumber}',${brandid},${dealerid},${locationid}`      
+        const query = `use [UAD_VON] EXEC [10.10.152.16].[z_scope].dbo.sp_partfamilysale '${partnumber}',${brandid},${dealerid},${locationid}`      
         const result = await pool.request().query(query)
         res.status(200).json({Data:result.recordset})
 } catch (error) {
@@ -436,17 +438,19 @@ try {
 const adminPendingView = async(req,res)=>{
 try {
         const pool = await getPool1()
-        const {brandid,dealerid,locationid,status} = req.body
+        const {brandid,dealerid,locationid,status,seasonalid,modelid,natureid} = req.body
         if(!brandid){
             return res.status(400).json({message:`Brandid is required`})
         }
-        const query = `use [UAD_VON] EXEC sp_GetAdminView @brandid = @brandid, @dealerid = @dealerid, @locationid = @locationid,@Status = @status ;`
+        const query = `use [UAD_VON] EXEC sp_GetAdminView @brandid = @brandid, @dealerid = @dealerid, @locationid = @locationid,@Status = @status,@seasonalid = @seasonalid, @natureid = @natureid, @modelid = @modelid;`
         const result = await pool.request()
         .input('brandid',sql.Int,brandid)
         .input('dealerid',sql.Int,dealerid)
-
         .input('locationid',sql.Int,locationid)
         .input('status',sql.Int,status)
+        .input('seasonalid',sql.Int,seasonalid ?? null)
+        .input('natureid',sql.Int,natureid ?? null)
+        .input('modelid',sql.Int,modelid ?? null)
         .query(query)
         // console.log(result.recordset);
         res.status(200).json({Data:result.recordset})
@@ -467,7 +471,7 @@ const dealerUpload = async(req,res)=>{
     const workbook = xlsx.readFile(filePath);
     const sheetName = workbook.SheetNames[0]; // Read the first sheet
     let data = xlsx.utils.sheet_to_json(workbook.Sheets[sheetName]);
-    console.log("Data : ", data[0]);
+    // console.log("Data : ", data[0]);
      fs.unlinkSync(filePath)
      res.send(data)
 }
