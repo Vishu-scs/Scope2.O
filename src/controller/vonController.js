@@ -1,8 +1,8 @@
 import {getPool1} from '../db/db.js'
 import sql from 'mssql'
-import xlsx from 'xlsx'
+
 import fs from 'fs'
-import { partBrandCheck } from '../utils/vonHelper.js'
+import { partBrandCheck, readExcel } from '../utils/vonHelper.js'
 import { model } from './MasterApiController.js'
 
 
@@ -370,16 +370,20 @@ const adminFeedbackLog = async (req,res)=>{
 const partFamily = async (req,res)=>{
 try {
         const pool = await getPool1()
-        const {partnumber} = req.body
-        if(!partnumber){
-            return res.status(400).json({Error:`partnumber is required`})
+        const {partnumber , brandid} = req.body
+        if(!partnumber || !brandid){
+            return res.status(400).json({Error:`partnumber and brandid is required`})
         }
         // console.log(partnumber);
         
-        const query = ` use [z_scope] 
-                        select pm.partnumber1, (CASE WHEN pm.BrandID = sm.BrandID AND pm.PartNumber = sm.PartNumber THEN sm.SubPartNumber ELSE pm.PartNumber END)as LatestPartNumber , pm.partdesc, pm.category,pm.landedcost from [10.10.152.16].[z_scope].dbo.substitution_master sm 
-                        join [10.10.152.16].[z_scope].dbo.part_master pm on pm.brandid = sm.brandid and pm.partnumber1 = sm.partnumber1
-                        where sm.subpartnumber = (select distinct subpartnumber1 from [10.10.152.16].[z_scope].dbo.substitution_master where partnumber1 = @partnumber)`
+        // const query = ` use [z_scope] 
+        //                 select pm.partnumber1, (CASE WHEN pm.BrandID = sm.BrandID AND pm.PartNumber = sm.PartNumber THEN sm.SubPartNumber ELSE pm.PartNumber END)as LatestPartNumber , pm.partdesc, pm.category,pm.landedcost from [10.10.152.16].[z_scope].dbo.substitution_master sm 
+        //                 join [10.10.152.16].[z_scope].dbo.part_master pm on pm.brandid = sm.brandid and pm.partnumber1 = sm.partnumber1
+        //                 where sm.subpartnumber = (select distinct subpartnumber1 from [10.10.152.16].[z_scope].dbo.substitution_master where partnumber1 = @partnumber)`
+        const query = `use z_scope
+                        select pm.partnumber1, (CASE WHEN pm.BrandID = sm.BrandID AND pm.PartNumber = sm.PartNumber THEN sm.SubPartNumber ELSE pm.PartNumber END)as LatestPartNumber , pm.partdesc, pm.category,pm.landedcost from Substitution_Master sm
+                        join part_master pm on pm.brandid = sm.brandid and sm.partnumber = pm.partnumber
+                        where sm.subpartnumber = '${partnumber}' and sm.brandid = ${brandid}`
         const result = await pool.request().input('partnumber',sql.VarChar,partnumber).query(query)
         // console.log(result.recordset);
         
@@ -427,7 +431,7 @@ try {
         if(!partnumber || !brandid || !dealerid || !locationid){
             return res.status(400).json({message:`All fields are required`})
         }        
-        const query = `use [UAD_VON] EXEC [10.10.152.16].[z_scope].dbo.sp_partfamilysale '${partnumber}',${brandid},${dealerid},${locationid}`      
+        const query = `use [UAD_VON] EXEC  sp_partfamilysale '${partnumber}',${brandid},${dealerid},${locationid}`      
         const result = await pool.request().query(query)
         res.status(200).json({Data:result.recordset})
 } catch (error) {
@@ -458,23 +462,267 @@ try {
     res.status(500).json({Error:error.message})
 }
 }
-const dealerUpload = async(req,res)=>{
-    
-    const {id} = req.body
-    if(!id){
-        res.status(400).json({message:`Body is required`})
-    }
-    if (!req.file || req.file.length === 0) {
+// const dealerUpload = async(req,res)=>{
+// try {
+//        const pool = await getPool1()
+//        const transaction = pool.transaction(); // Create a transaction object
+//         if (!req.file || req.file.length === 0) {
+//             return res.status(400).json({ message: "No files received" });
+//         }
+//         let data = await readExcel(req.file.path)
+//         // console.log("Data : ", data[0]);
+//          fs.unlinkSync(req.file.path)
+
+//         const UserID = 1
+
+//         const filteredData = data.map(({ Brandid, Dealerid, Locationid ,Partid,Maxvalue, UserRemark, ProposedQty }) => ({
+//             Brandid, Dealerid,Locationid,Partid,Maxvalue,UserID,UserRemark, ProposedQty
+//         }));
+//         console.log(`filtered data : `,filteredData[0]);
+
+//         const tableName = `UAD_VON_SPMFeedback_${filteredData[0].Brandid}`
+//         // console.log(tableName);
+
+//         await transaction.begin();
+//         for (const row of filteredData) {
+//             const columns = Object.keys(row).join(", ");
+//             const values = Object.keys(row)
+//               .map((_, idx) => `@val${idx}`)
+//               .join(", ");
+
+//             const query = `use [UAD_VON] INSERT INTO ${tableName} (${columns}) VALUES (${values})`;
+//             console.log(query);
+            
+//             const request = transaction.request(); // Use the transaction's request
+      
+//             // Bind parameters
+//             Object.values(row).forEach((val, idx) => {
+//               request.input(`val${idx}`, val);
+//             });
+      
+//             await request.query(query);
+//           }
+
+//         // const query = `use UAD_VON Insert into ${tableName} (Brandid,Dealerid,Locationid,PartID,MaxValue,UserID,CustomRem,ProposedQty)
+//         // values (${Brandid},)`
+//         res.status(200).json(filteredData)
+// } catch (error) {
+//     res.status(500).json({Error:error.message})
+// }
+// }
+// const dealerUpload = async (req, res) => {
+//     try {
+//       const pool = await getPool1();
+//       const transaction = pool.transaction(); // Create a transaction object
+  
+//       if (!req.file || req.file.length === 0) {
+//         return res.status(400).json({ message: "No files received" });
+//       }
+  
+//       let data = await readExcel(req.file.path);
+//       fs.unlinkSync(req.file.path); // Delete uploaded file after processing
+  
+//       const UserID = 1; // Set a static user ID for now
+//       const UserFBRemarkID = 1; // Set a static user ID for now
+
+//       // Extract and filter required fields
+//     const filteredData = data
+//       .filter(({ UserRemark, ProposedQty }) => UserRemark !== null && UserRemark !== undefined || ProposedQty !== null && ProposedQty !== undefined)
+//       .map(({ Brandid, Dealerid, Locationid, Partid, Maxvalue, UserRemark, ProposedQty }) => {
+//         let row = { Brandid, Dealerid, Locationid, Partid, Maxvalue, UserID , UserFBRemarkID }; // Required fields
+
+//         if (UserRemark !== null && UserRemark !== undefined) {
+//           row.CustomRem = UserRemark; // Rename UserRemark to CustomRem if it exists
+//         }
+
+//         if (ProposedQty !== null && ProposedQty !== undefined) {
+//           row.ProposedQty = ProposedQty; // Include only if not null
+//         }
+
+//         return row;
+//       });
+//       if (filteredData.length === 0) {
+//         return res.status(400).json({ message: "No valid data found" });
+//       }
+  
+//       console.log(`Filtered Data: `, filteredData);
+  
+//       const tableName = `[UAD_VON].[dbo].[UAD_VON_SPMFeedback_${filteredData[0].Brandid}]`;
+  
+//       await transaction.begin(); // Start the transaction
+  
+//       for (const row of filteredData) {
+//         const columns = Object.keys(row).join(", ");
+//         const values = Object.keys(row)
+//           .map((_, idx) => `@val${idx}`)
+//           .join(", ");
+  
+//         const query = `INSERT INTO ${tableName} (${columns}) VALUES (${values})`;
+//         // console.log(query); // Log the query to debug
+  
+//         const request = transaction.request(); // Use the transaction request
+  
+//         // Bind parameters dynamically
+//         Object.values(row).forEach((val, idx) => {
+//           request.input(`val${idx}`, val);
+//         });
+  
+//         await request.query(query);
+//       }
+  
+//       await transaction.commit(); // Commit transaction after all inserts
+  
+//       res.status(200).json({ message: "Data inserted successfully", data: filteredData });
+//     } catch (error) {
+//       console.error("Error in dealerUpload:", error);
+//       res.status(500).json({ Error: error.message });
+  
+//       if (transaction) {
+//         await transaction.rollback(); // Rollback transaction on error
+//       }
+//     }
+// };
+const dealerUpload = async (req, res) => {
+    let transaction; // Declare transaction outside try block
+  
+    try {
+      const pool = await getPool1();
+      transaction = pool.transaction(); // Initialize transaction
+  
+      if (!req.file || req.file.length === 0) {
         return res.status(400).json({ message: "No files received" });
+      }
+  
+      let data = await readExcel(req.file.path);
+      console.log(`data` , data);
+      
+      fs.unlinkSync(req.file.path); // Delete uploaded file after processing
+  
+      const UserID = 1; // Static User ID
+      const UserFBRemarkID = 1; // Static feedback remark ID
+  
+      // Filter & Map Data
+    //   const filteredData = data
+    //     .filter(({ UserRemark, ProposedQty }) => 
+    //       (UserRemark !== null && UserRemark !== undefined) || (ProposedQty !== null && ProposedQty !== undefined)
+    //     )
+    //     .map(({ Brandid, Dealerid, Locationid, Partid, Maxvalue, UserRemark, ProposedQty }) => {
+    //       let row = { Brandid, Dealerid, Locationid, Partid, Maxvalue, UserID, UserFBRemarkID };
+  
+    //       if (UserRemark !== null && UserRemark !== undefined) {
+    //         row.CustomRem = UserRemark; // Rename to CustomRem
+    //       }
+  
+    //       if (ProposedQty !== null && ProposedQty !== undefined) {
+    //         row.ProposedQty = ProposedQty;
+    //       }
+  
+    //       return row;
+    //     });
+    const filteredData = [];
+    for (const row of data) {
+      const { Brandid, Dealerid, Locationid, Partid, Maxvalue, UserRemark, ProposedQty } = row;
+
+      if ((UserRemark === null || UserRemark === undefined) && (ProposedQty === null || ProposedQty === undefined)) {
+        continue; // Skip rows where both UserRemark and ProposedQty are null
+      }
+
+      const tableName = `[UAD_VON].[dbo].[UAD_VON_SPMFeedback_${Brandid}]`;
+
+      // Fetch Previous Feedback ID
+      let previousFBID = null;
+      try {
+        const previousFBQuery = `
+          SELECT TOP 1 FeedbackID 
+          FROM ${tableName}
+          WHERE PartID = @partid 
+          ORDER BY FeedbackDate DESC
+        `;
+
+        const previousFBResult = await pool.request()
+          .input('partid', sql.Int, Partid)
+          .query(previousFBQuery);
+
+        previousFBID = previousFBResult.recordset.length > 0 ? previousFBResult.recordset[0].FeedbackID : null;
+      } catch (fetchError) {
+        console.error("Error fetching previousFBID:", fetchError);
+      }
+          // Fetch Latest Part ID
+          let LatestPartID = null;
+          try {
+            const LatestPartQuery = `
+              SELECT (CASE WHEN pm.BrandID = sm.BrandID AND pm.PartNumber = sm.PartNumber 
+                           THEN sm.SubPartNumber ELSE pm.PartNumber END) AS LatestPartNumber 
+              FROM z_scope..substitution_master sm
+              JOIN part_master pm ON pm.brandid = sm.brandid AND pm.partnumber = sm.partnumber 
+              WHERE pm.partid = @partid
+            `;
+    
+            const latestPartResult = await pool.request()
+              .input('partid', sql.Int, Partid)
+              .query(LatestPartQuery);
+    
+            LatestPartID = latestPartResult.recordset.length > 0 ? latestPartResult.recordset[0].LatestPartNumber : null;
+          } catch (error) {
+            console.error("Error fetching LatestPartID:", error);
+          }
+      // Create row object
+      let newRow = { Brandid, Dealerid, Locationid, Partid, Maxvalue, UserID, UserFBRemarkID, previousFBID ,LatestPartID };
+
+      if (UserRemark !== null && UserRemark !== undefined) {
+        newRow.CustomRem = UserRemark; // Rename to CustomRem
+      }
+
+      if (ProposedQty !== null && ProposedQty !== undefined) {
+        newRow.ProposedQty = ProposedQty;
+      }
+
+      filteredData.push(newRow);
     }
-    const filePath = req.file.path;
-    const workbook = xlsx.readFile(filePath);
-    const sheetName = workbook.SheetNames[0]; // Read the first sheet
-    let data = xlsx.utils.sheet_to_json(workbook.Sheets[sheetName]);
-    // console.log("Data : ", data[0]);
-     fs.unlinkSync(filePath)
-     res.send(data)
-}
+  
+      if (filteredData.length === 0) {
+        return res.status(400).json({ message: "No valid data found" });
+      }
+  
+      console.log(`Filtered Data: `, filteredData);
+  
+      const tableName = `[UAD_VON].[dbo].[UAD_VON_SPMFeedback_${filteredData[0].Brandid}]`;
+  
+      await transaction.begin(); // Start transaction
+  
+      for (const row of filteredData) {
+        const columns = Object.keys(row).join(", ");
+        const values = Object.keys(row)
+          .map((_, idx) => `@val${idx}`)
+          .join(", ");
+  
+        const query = `INSERT INTO ${tableName} (${columns}) VALUES (${values})`;
+  
+        const request = transaction.request();
+  
+        // Bind parameters dynamically
+        Object.values(row).forEach((val, idx) => {
+          request.input(`val${idx}`, val);
+        });
+  
+        await request.query(query);
+      }
+  
+      await transaction.commit(); // Commit transaction
+  
+      res.status(200).json({ message: "Data inserted successfully", data: filteredData });
+    } catch (error) {
+      console.error("Error in dealerUpload:", error);
+  
+      if (transaction) {
+        await transaction.rollback(); // Rollback transaction on error
+      }
+  
+      res.status(500).json({ Error: error.message });
+    }
+  };
+  
+  
 
 
 

@@ -1,4 +1,5 @@
 import sql from 'mssql'
+import xlsx from 'xlsx'
 import { getPool1 } from '../db/db.js'
 
 const partBrandCheck = async(dealerid,locationid,partid)=>{
@@ -22,7 +23,15 @@ const partBrandCheck = async(dealerid,locationid,partid)=>{
         }
 }
 
+const readExcel = async (filePath)=>{
+      let data
+      //  filePath = req.file.path;
+      const workbook = xlsx.readFile(filePath);
+      const sheetName = workbook.SheetNames[0]; // Read the first sheet
+      return data = xlsx.utils.sheet_to_json(workbook.Sheets[sheetName]);
+}
 
 
 
-export {partBrandCheck}
+
+export {partBrandCheck,readExcel}
