@@ -1,10 +1,14 @@
 import {getPool1} from '../db/db.js'
 import sql from 'mssql'
+import xlsx from 'xlsx'
+import fs from 'fs'
 import { partBrandCheck } from '../utils/vonHelper.js'
+import { model } from './MasterApiController.js'
 
 
 const remarkMaster = async (req,res)=>{
 try {
+    
         const pool = await getPool1()
         const {brandid,usertype} = req.body
         if(!brandid || !usertype){
@@ -123,6 +127,7 @@ const userFeedbacklog = async (req,res)=>{
    if(!partCheck){
         return res.status(400).json({Error:`PartID is Invalid`})
    }
+
     const dynamicTable = `[UAD_VON]..UAD_VON_SPMFeedback_${brandid}`
     // console.log(dynamicTable);
     
@@ -265,7 +270,7 @@ const result = await request.query(query);
 }
 const adminView = async(req,res)=>{
     try {
-        const pool = await  getPool1()
+        const pool =await getPool1()
         const {brandid, dealerid, r1, r2 ,l1,l2, partnumber , locationid , flag, seasonalid, modelid, natureid, status,parttype} = req.body
         if(!brandid || !dealerid){
             return res.status(400).json({Error:`Brandid and Dealerid are required Parameter`})
@@ -274,10 +279,11 @@ const adminView = async(req,res)=>{
         if(!partnumber && !locationid){
             return res.status(400).json({Error:`partnumber or locationid is required`})
         }
-         const request = pool.request();
         
+         const request = pool.request();
+
         // Handle potential NULL values correctly
-        request.input('brandid',sql.Int,brandid)
+        request.input('brandid',sql.Int,brandid)        
         request.input('dealerid',sql.Int,dealerid)
         request.input('r1', sql.Int, r1 ?? null);
         request.input('r2', sql.Int, r2 ?? null);
@@ -292,8 +298,7 @@ const adminView = async(req,res)=>{
         request.input('status', sql.Bit, status ?? null);
         request.input('parttype', sql.Bit, parttype ?? null);
 
-        const result = await request.query(query);
-        
+        const result = await request.query(query);        
         res.status(200).json({Data:result.recordset})
 } catch (error) {
     res.status(500).json({Error:error.message})
@@ -307,7 +312,7 @@ const adminFeedbackLog = async (req,res)=>{
             return res.status(400).json({message:`All Fields are required and Feedbackid cannot be null`})
         }
         
-        const dynamicTable = `[UAD_VON]..UAD_VON_AdminFeedback_${brandid}`
+         const dynamicTable = `[UAD_VON]..UAD_VON_AdminFeedback_${brandid}`
         const userdynamicTable = `[UAD_VON]..UAD_VON_SPMFeedback_${brandid}`
         let PreviousAdminFBID = null;
         // console.log(PreviousAdminFBID);
@@ -371,10 +376,10 @@ try {
         }
         // console.log(partnumber);
         
-        const query = `use [z_scope] 
-                        select pm.partnumber1, (CASE WHEN pm.BrandID = sm.BrandID AND pm.PartNumber = sm.PartNumber THEN sm.SubPartNumber ELSE pm.PartNumber END)as LatestPartNumber , pm.partdesc, pm.category,pm.landedcost from substitution_master sm 
-                        join part_master pm on pm.brandid = sm.brandid and pm.partnumber1 = sm.partnumber1
-                        where sm.subpartnumber = (select distinct subpartnumber1 from substitution_master where partnumber1 = @partnumber)`
+        const query = ` use [z_scope] 
+                        select pm.partnumber1, (CASE WHEN pm.BrandID = sm.BrandID AND pm.PartNumber = sm.PartNumber THEN sm.SubPartNumber ELSE pm.PartNumber END)as LatestPartNumber , pm.partdesc, pm.category,pm.landedcost from [10.10.152.16].[z_scope].dbo.substitution_master sm 
+                        join [10.10.152.16].[z_scope].dbo.part_master pm on pm.brandid = sm.brandid and pm.partnumber1 = sm.partnumber1
+                        where sm.subpartnumber = (select distinct subpartnumber1 from [10.10.152.16].[z_scope].dbo.substitution_master where partnumber1 = @partnumber)`
         const result = await pool.request().input('partnumber',sql.VarChar,partnumber).query(query)
         // console.log(result.recordset);
         
@@ -383,4 +388,94 @@ try {
     res.status(500).json({Error:error.message})
 }
 }
-export {remarkMaster,userView,adminView,userFeedbacklog,viewLog,newRemark,viewRemark,adminFeedbackLog,partFamily}
+const countPending = async(req,res)=>{
+try {
+        const pool = await getPool1()
+        const {brandid , dealerid} = req.body
+   
+    const query = `USE [UAD_VON]; 
+DECLARE @sql NVARCHAR(MAX) = N'';
+SELECT @sql = @sql + 
+    'SELECT li.Brand,li.brandid, li.dealer,li.dealerid, li.location,li.locationid, COUNT(*) AS Pending ' +
+    'FROM ' + QUOTENAME(name) + ' a ' + 
+    'JOIN z_scope..locationinfo li ON li.locationid = a.locationid ' + 
+    'WHERE a.status = ''Pending'' ' +
+    'GROUP BY li.Brand,li.brandid, li.dealer,li.dealerid,li.locationid, li.location UNION ALL ' 
+FROM sys.tables
+WHERE name LIKE 'UAD_VON_SPMFeedback_%';
+
+-- Remove the last ' UNION ALL ' to avoid syntax error
+IF LEN(@sql) > 10
+    SET @sql = LEFT(@sql, LEN(@sql) - 10);
+
+-- Append ORDER BY
+SET @sql = @sql + ' ORDER BY Pending DESC;';
+
+-- Execute the dynamically built SQL
+EXEC sp_executesql @sql;`
+    const result = await pool.request().query(query)
+    // console.log(result.recordset);
+    res.status(200).json({Data:result.recordset})
+} catch (error) {
+      res.status(500).json({Error:error.message})
+}
+}
+const partFamilySale = async(req,res)=>{
+try {
+        const pool = await getPool1()
+        const {partnumber , brandid , dealerid , locationid}= req.body
+        if(!partnumber || !brandid || !dealerid || !locationid){
+            return res.status(400).json({message:`All fields are required`})
+        }        
+        const query = `use [UAD_VON] EXEC [10.10.152.16].[z_scope].dbo.sp_partfamilysale '${partnumber}',${brandid},${dealerid},${locationid}`      
+        const result = await pool.request().query(query)
+        res.status(200).json({Data:result.recordset})
+} catch (error) {
+     res.status(500).json({Error:error.message})
+}
+
+}
+const adminPendingView = async(req,res)=>{
+try {
+        const pool = await getPool1()
+        const {brandid,dealerid,locationid,status,seasonalid,modelid,natureid} = req.body
+        if(!brandid){
+            return res.status(400).json({message:`Brandid is required`})
+        }
+        const query = `use [UAD_VON] EXEC sp_GetAdminView @brandid = @brandid, @dealerid = @dealerid, @locationid = @locationid,@Status = @status,@seasonalid = @seasonalid, @natureid = @natureid, @modelid = @modelid;`
+        const result = await pool.request()
+        .input('brandid',sql.Int,brandid)
+        .input('dealerid',sql.Int,dealerid)
+        .input('locationid',sql.Int,locationid)
+        .input('status',sql.Int,status)
+        .input('seasonalid',sql.Int,seasonalid ?? null)
+        .input('natureid',sql.Int,natureid ?? null)
+        .input('modelid',sql.Int,modelid ?? null)
+        .query(query)
+        // console.log(result.recordset);
+        res.status(200).json({Data:result.recordset})
+} catch (error) {
+    res.status(500).json({Error:error.message})
+}
+}
+const dealerUpload = async(req,res)=>{
+    
+    const {id} = req.body
+    if(!id){
+        res.status(400).json({message:`Body is required`})
+    }
+    if (!req.file || req.file.length === 0) {
+        return res.status(400).json({ message: "No files received" });
+    }
+    const filePath = req.file.path;
+    const workbook = xlsx.readFile(filePath);
+    const sheetName = workbook.SheetNames[0]; // Read the first sheet
+    let data = xlsx.utils.sheet_to_json(workbook.Sheets[sheetName]);
+    // console.log("Data : ", data[0]);
+     fs.unlinkSync(filePath)
+     res.send(data)
+}
+
+
+
+export {remarkMaster,userView,adminView,userFeedbacklog,viewLog,newRemark,viewRemark,adminFeedbackLog,partFamily,countPending,partFamilySale,adminPendingView,dealerUpload}

@@ -248,7 +248,6 @@ if (!isValid) {
       const exists = partNotInMasterArray.some(
         (item1) => item1.partnumber == partnumber
       );
-
       if (!exists) {
         // console.log("exists ",partnumber)
         partNotInMasterArray.push({ partnumber: partnumber });
