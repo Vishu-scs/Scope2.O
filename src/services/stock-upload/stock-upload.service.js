@@ -42,6 +42,7 @@ const stockUploadSingleLocation = async (req, res) => {
   let fileData;
   let headers;
   let rowDataArray;
+ // console.log("mapped data ",mappedData)
   if (brandId == 11 || brandId == 33) {
     fileData = await readExcelFileWithSubColumns(req.file.path);
     // rowData=fileData.data.splice(2);
@@ -52,7 +53,7 @@ const stockUploadSingleLocation = async (req, res) => {
     rowDataArray = fileData.data;
   }
   headers = fileData.headers;
-//  console.log("headers ",headers)
+ // console.log("headers ",headers)
 const requiredBrandIds = [17, 28];
 // console.log("headers ",headers)
 const normalizedHeaders = headers.map(header => header.trim().toLowerCase());
@@ -225,6 +226,7 @@ if (!isValid) {
 
     // Loop over the partMasterResult to find a match
     for (const element of partMasterResult) {
+      // if(item.part_number.trim().toLowerCase()=='06h906433d'){console.log("executed ",item,element)}
       if (item.part_number.trim().toLowerCase() === element.partnumber1.trim().toLowerCase()) {
         // Add the partid to the item if a match is found
         item.partId = element.partID; // Directly mutate the original item
@@ -838,7 +840,7 @@ const combinedData = updatedFilteredRowData1.map(item => {
   if(combinedData.length<insertedDataResult.length){
     const updatedMap = new Map(combinedData.map(item => [item.partId, item]));
 
-    console.log("updatedMap",insertedDataResult)
+   // console.log("updatedMap",insertedDataResult)
     // Check for missing records in insertedDataResult
     const missingRecords = insertedDataResult
     .filter(item => !updatedMap.has(item.partID))
@@ -849,7 +851,7 @@ const combinedData = updatedFilteredRowData1.map(item => {
     }));
   
     
-    console.log("Missing Records:", missingRecords);
+   // console.log("Missing Records:", missingRecords);
     
     combinedData.forEach(item => {
       if (updatedMap.has(item.partId)) {
@@ -1147,7 +1149,7 @@ const getPartNotInMasterMultiLocationInService=async(req,res)=>{
             const tempBuffer = xlsx.write(wb, { bookType: 'xlsx', type: 'buffer' });
     
             // Add the buffer directly to the ZIP file
-            archive.addBuffer(tempBuffer, `part_not_in_master_${brandName}.xlsx`);
+            archive.addBuffer(tempBuffer, `part_not_in_master_${locationName}.xlsx`);
           } catch (error) {
             console.error('Error in get part not in master:', error.message);
             return {error:error};

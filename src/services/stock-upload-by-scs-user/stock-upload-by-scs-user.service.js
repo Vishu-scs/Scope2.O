@@ -586,7 +586,7 @@ const uploadBulkStock = async (req, res) => {
     const requiredBrandIds = [17, 28];
     const normalizedHeaders = headers.map(header => header.trim().toLowerCase());
 const isValid = Object.entries(mappedData)
-    .filter(([key]) => key !== 'stock_type' && key !== 'loc') // Exclude stock_type and loc
+    .filter(([key]) => key !== 'stock_type' ) // Exclude stock_type and loc
     .every(([, value]) => headers.includes(value)); // Check if all values exist in headers
 
 // If brandId is 17, 28 check for "availability" and "status" in headers
@@ -622,6 +622,9 @@ if (!isValid) {
       status: rowData1["status"] != null 
           ? rowData1["status"].toString().trim() 
           : "",
+          location: rowData1[mappedData.loc] != null 
+          ? rowData1[mappedData.loc]
+          : 0, 
   }));
     // console.log("row data ",rowData)
 
@@ -658,6 +661,8 @@ if (!isValid) {
 
       // return true; // Keep the row if it passed all filters
     });
+
+   // console.log("filtered data 665 ",filteredRowData)
     let partMasterQuery = `use z_scope select partnumber1 ,partID from part_master where brandId=@brandId`;
 
     const result = await pool
@@ -682,7 +687,7 @@ if (!isValid) {
     let locationIds = locations.map((location) =>
       parseInt(location.locationId, 10)
     );
-    // console.log("locationIds ", locationIds);
+   //  console.log("locationIds ", locationIds);
 
     let query12 = `
    USE [StockUpload]; 
@@ -810,7 +815,7 @@ if (!isValid) {
           }))
       );
 
-     // console.log("combined existed data 716", combinedExistedData);
+      //console.log("combined existed data 716", combinedExistedData);
     }
 
     //console.log("filtered row 713 ",filteredRowData)
@@ -834,7 +839,7 @@ if (!isValid) {
 
       if (!deleteItem) {
         for (const element of dealerLocationMappedData) {
-          //  console.log("element ",element,item)
+          // console.log("element ",element,item)
           if (item.location && item.location.trim().toLowerCase() === element.inventory_location.trim().toLowerCase()) {
             // Add the partid to the item if a match is found
             item.locationId = element.locationId; // Directly mutate the original item
@@ -860,12 +865,12 @@ if (!isValid) {
       }
     }
 
-   // console.log("filtered row data 755", updatedFilteredRowData);
+   // console.log("filtered row data 868", updatedFilteredRowData);
 
     const partCountMap = new Map();
 
 
-    //console.log("updated filteredd data 771 ",updatedFilteredRowData)
+   // console.log("updated filteredd data 771 ",updatedFilteredRowData)
     // Group and accumulate stockQty for each partNumber + locationId
     for (const element of updatedFilteredRowData) {
       const key = `${element.part_number}-${element.locationId}`; // Unique key for grouping
@@ -933,6 +938,7 @@ if (!isValid) {
           part_number: item.part_number,
           partId: item.partId,
           qty: item.qty, // Convert qty to an integer
+          locationId:item.locationId
         }));
 
       //  console.log("updated ",updatedMap)
@@ -955,18 +961,20 @@ if (!isValid) {
         updatedFilteredRowData.push(missingRecords[j]);
       }
     }
-   // console.log("updatedFiltered 828 ",updatedFilteredRowData)
+  //  console.log("updatedFiltered 828 ",updatedFilteredRowData)
     const uniqueLocationIds = [
       ...new Set(updatedFilteredRowData.map((item) => item.locationId)),
     ];
 
    // console.log("updatedFiltered row ",updatedFilteredRowData)
-   // console.log("unique location ids ", uniqueLocationIds);
+ //  console.log("unique location ids ", uniqueLocationIds);
     let rowCount;
 
     rowCount = updatedFilteredRowData?.length;
     let combinedLogsLocationWise = [];
     let currentStockCode;
+   // console.log("unique ids ",uniqueLocationIds)
+
 for(let i = 0; i < uniqueLocationIds.length; i++){
   let locId = uniqueLocationIds[i];
  // console.log("updated ",updatedFilteredRowData)
@@ -975,7 +983,7 @@ for(let i = 0; i < uniqueLocationIds.length; i++){
   );
   
 
-// console.log("filtered data ",filteredData);
+ //console.log("filtered data ",filteredData,locId,StockCodes);
 
       // console.log("updated filtered row after getting unique location id ",updatedFilteredRowData)
       // console.log("current stock1 ",locId,formattedDate,addedBy)
@@ -998,7 +1006,7 @@ for(let i = 0; i < uniqueLocationIds.length; i++){
           item["partId"],
         ];
       });
- //console.log("values ",values1);
+//  console.log("values ",values1);
       try {
         await pool.request();
         await pool.request().query('use [StockUpload]') 
@@ -1036,7 +1044,7 @@ let currentQuantSum = 0;
     if (result678?.recordset?.length != 0) {
       currentQuantSum = result678?.recordset[0]?.currentQuantSum;
     }
-    // console.log("currentquant ",currentQuantSum)
+   //  console.log("currentquant ",currentQuantSum)
     let logQuery = `use [StockUpload] insert into Stock_Upload_Logs(Stockcode,location_id,dealer_id,added_by,brand_id, stockUploadCount,operation_type,quantitySum,
      prevStockUploadCount,prevQuantitySum) values(@currentStockCode,@locId,@dealerId,@addedBy,@brandId,@rowCount,'bulk stock upload ',@currentQuantSum,@countPrevRecords,@quantitySumPrev)`;
     await pool
@@ -1059,9 +1067,16 @@ let currentQuantSum = 0;
           prevRecords: countPrevRecords,
         }
       )
+
+      // console.log("partNotInMaster ", {
+      //   currentSumQuantity: currentQuantSum,
+      //   prevSumQuantity: quantitySumPrev,
+      //   currentRecords: rowCount,
+      //   prevRecords: countPrevRecords,
+      // })
   }
 
- // console.log("partNotInMaster ",partNotInMasterArray)
+  
   if(partNotInMasterArray.length!=0){
     //  console.log("part not in master ",partNotInMasterArray)
     const values = partNotInMasterArray.map((item) => {
@@ -1125,7 +1140,7 @@ let currentQuantSum = 0;
    
   }
 
- 
+  //  console.log("locationIWs e",combinedLogsLocationWise)
     return combinedLogsLocationWise;
   } catch (error) {
     console.log(
@@ -1175,8 +1190,8 @@ const getBulkRecordsInService = async (req, res) => {
     request.input("userId", userId);
 
     const result = await request.query(getQuery);
-    // console.log("result.recordset ",result.recordset)
-    return result.recordset;
+    //console.log("result.recordset ",result.recordset)
+     return result.recordset;
   } catch (error) {
     console.log(
       "error in stock upload service in getAll records bulk loc",
