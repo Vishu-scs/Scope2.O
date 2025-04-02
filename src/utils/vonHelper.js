@@ -30,8 +30,32 @@ const readExcel = async (filePath)=>{
       const sheetName = workbook.SheetNames[0]; // Read the first sheet
       return data = xlsx.utils.sheet_to_json(workbook.Sheets[sheetName]);
 }
+const insertData = async (formattedData,tableName)=>{
+  const pool = await getPool1()
+  const transaction = pool.transaction()
+
+  await transaction.begin();
+  
+  for (const row of formattedData) {
+    const columns = Object.keys(row).join(", ");
+    const values = Object.keys(row)
+      .map((_, idx) => `@val${idx}`)
+      .join(", ");
+
+    const query = `INSERT INTO ${tableName} (${columns}) VALUES (${values})`;
+
+    const request = transaction.request();
+
+    // Bind parameters dynamically
+    Object.values(row).forEach((val, idx) => {
+      request.input(`val${idx}`, val);
+    });
+
+    await request.query(query);
+  }
+  await transaction.commit(); // Commit transaction
+}
 
 
 
-
-export {partBrandCheck,readExcel}
+export {partBrandCheck,readExcel,insertData}
