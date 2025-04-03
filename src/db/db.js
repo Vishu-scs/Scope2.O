@@ -11,7 +11,7 @@ const config1 = {
         enableArithAbort: true ,
         trustServerCertificate: true,  // Helps with certain SQL Server errors
     },
-    requestTimeout: 6000000, // 30 seconds
+    requestTimeout: 600000, // 30 seconds
     connectionTimeout: 30000, // 30 seconds
 };
  

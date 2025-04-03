@@ -558,6 +558,8 @@ for (const d of distinctDealers) {
     }
 }
 // console.log('Dealers with IDs:', dealerResults);
+const maxTable = `z_scope..stockable_nonstockable_td001_${dealerResults[0].dealerid}`
+// console.log(maxTable);
 
 
 // Get location IDs for each distinct location
@@ -660,6 +662,49 @@ for (const partid of distinctPartid) {  // Ensure 'partid' comes from 'distinctP
     console.error(`Error fetching PreviousFBID for PartID ${partid}:`, fetchError);
   }
 }
+const partNumberMappings = [];
+for (const partid of distinctPartid) {
+    const queryPartNumber = `
+        SELECT partnumber 
+        FROM z_scope..part_master 
+        WHERE partid = ${partid}
+    `;
+
+    const result = await pool.request().query(queryPartNumber);
+    if (result.recordset.length) {
+        partNumberMappings.push({
+            partid,
+            partnumber: result.recordset[0].partnumber
+        });
+    }
+}
+const maxValues = [];
+for (const item of cleanedData) {
+    const locationMapping = locationResults.find(l => l.location === item.Location);
+    const partNumberMapping = partNumberMappings.find(p => p.partid === item.Partid);
+    
+    if (!locationMapping || !partNumberMapping) continue; // Skip if no mapping found
+
+    const queryMaxValue = `
+        SELECT maxvalue 
+        FROM ${maxTable} 
+        WHERE partnumber = '${partNumberMapping.partnumber}' 
+        AND locationid = ${locationMapping.locationid}
+        and stockdate = (select top 1 stockdate from ${maxTable} order by stockdate desc)
+    `;
+// console.log(queryMaxValue);
+
+    const result = await pool.request().query(queryMaxValue);
+    if (result.recordset.length) {
+        maxValues.push({
+            partnumber: partNumberMapping.partnumber,
+            locationid: locationMapping.locationid,
+            maxvalue: result.recordset[0].maxvalue
+        });
+    }
+}
+// console.log(maxValues);
+
 const invalidRecords = cleanedData.filter(item => {
     const locationMapping = locationResults.find(l => l.location === item.Location);
     return !locationMapping;  // If location is not found, it's invalid
@@ -686,12 +731,15 @@ const formattedData = cleanedData.map(item => {
     const locationMapping = locationResults.find(l => l.location === item.Location);
     const latestpartidMapping = latestPartIDs.find(lp => lp.Partid === item.Partid);
     const partidPreviousFBIDMapping = previousFBIDs.find(pfb => pfb.Partid === item.Partid);  // Fix Matching
+    const partNumberMapping = partNumberMappings.find(p => p.partid === item.Partid);
+    const maxValueMapping = maxValues.find(mv => mv.partnumber === partNumberMapping?.partnumber && mv.locationid === locationMapping?.locationid);
 
     return {
       brandid: brandMapping ? brandMapping.brandid : null,
       dealerid: dealerMapping ? dealerMapping.dealerid : null,
       locationid: locationMapping ? locationMapping.locationid : null,
-      maxvalue: item.Maxvalue,
+    //   maxvalue: item.Maxvalue,
+    maxvalue: maxValueMapping ? maxValueMapping.maxvalue : null,
       partid: item.Partid,
       latestpartid: latestpartidMapping ? latestpartidMapping.LatestPartID : null,
       UserID: UserID,
@@ -705,20 +753,22 @@ const formattedData = cleanedData.map(item => {
 // Find records with null locationid
 // const invalidRecords = formattedData.filter(item => item.locationid === null);
 
-// if (invalidRecords.length > 0) {
-//     // console.error("Error: The following records have null locationid:", invalidRecords);
+if (invalidRecords.length > 0) {
+    // console.error("Error: The following records have null locationid:", invalidRecords);
 
-//     return res.status(400).json({
-//         message: "Some records have missing location IDs",
-//         invalidRecords: invalidRecords
-//     });
-// }
+    return res.status(400).json({
+        message: "Some records have missing location IDs",
+        invalidRecords: invalidRecords
+    });
+}
+// console.log(formattedData);
 
 // console.log("Formatted Data:", formattedData);
 await transaction.begin(); // Start transaction
 await insertData(formattedData,tableName)  // Insert Function to insert formatted data into table
 await transaction.commit(); // Commit transaction
-  
+    console.log(`Dealer Feedback INSERTED`);
+    
       res.status(200).json({ message: "Data inserted successfully", data: formattedData });
 
 } catch (error) {
@@ -731,6 +781,96 @@ await transaction.commit(); // Commit transaction
       res.status(500).json({ Error: error.message });
     }
 };
+
+
+// const dealerUpload = async (req, res) => {
+//     let transaction;
+//     try {
+//         console.time("dealerUpload"); // Start timing execution
+
+//         const pool = await getPool1(); // Ensure pool is connected
+//         transaction = pool.transaction(); // Initialize transaction
+
+//         if (!req.file || req.file.length === 0) {
+//             return res.status(400).json({ message: "No files received" });
+//         }
+
+//         let data = await readExcel(req.file.path);
+//         fs.unlinkSync(req.file.path); // Delete uploaded file after processing
+
+//         const cleanedData = data
+//             .filter(item => item.UserRemark !== null && item.ProposedQty !== null)
+//             .map(({ Brand, Dealer, Location, Maxvalue, Partid, UserRemark, ProposedQty }) => ({
+//                 Brand,
+//                 Dealer,
+//                 Location,
+//                 Maxvalue,
+//                 Partid,
+//                 UserRemark,
+//                 ProposedQty
+//             }));
+
+//         if (cleanedData.length === 0) {
+//             return res.status(400).json({ message: "UserFeedback and ProposedQty cannot be null or undefined" });
+//         }
+
+//         // 🔹 Set SQL request timeout (default is 15s, increase to 60s)
+//         const request = pool.request();
+//         request.timeout = 60000;
+
+//         // 🔹 Fetch IDs (with error handling)
+//         const brand = data[0].Brand;
+//         const dealer = data[0].Dealer;
+
+//         console.time("Query - Get Brand & Dealer ID");
+//         const queryIds = `SELECT brandid, dealerid FROM locationinfo WHERE brand = @brand AND dealer = @dealer`;
+//         request.input("brand", sql.NVarChar, brand);
+//         request.input("dealer", sql.NVarChar, dealer);
+//         const resultIds = await request.query(queryIds);
+//         console.timeEnd("Query - Get Brand & Dealer ID");
+
+//         if (resultIds.recordset.length === 0) {
+//             return res.status(400).json({ message: `No matching Brand/Dealer found: ${brand} - ${dealer}` });
+//         }
+
+//         const { brandid, dealerid } = resultIds.recordset[0];
+
+//         // Start Transaction
+//         try {
+//             console.time("Transaction Begin");
+//             await transaction.begin();
+//             console.timeEnd("Transaction Begin");
+//         } catch (err) {
+//             console.error("Transaction start failed:", err);
+//             return res.status(500).json({ message: "Transaction could not start", error: err.message });
+//         }
+
+//         // 🔹 Insert Process (Replace with actual bulk insert logic)
+//         console.time("Insert Data");
+//         await insertData(cleanedData, brandid, dealerid);
+//         console.timeEnd("Insert Data");
+
+//         console.time("Transaction Commit");
+//         await transaction.commit();
+//         console.timeEnd("Transaction Commit");
+
+//         console.timeEnd("dealerUpload"); // End timing execution
+//         res.status(200).json({ message: "Data inserted successfully" });
+
+//     } catch (error) {
+//         console.error("Error in dealerUpload:", error);
+
+//         if (transaction) {
+//             console.time("Transaction Rollback");
+//             await transaction.rollback();
+//             console.timeEnd("Transaction Rollback");
+//         }
+
+//         res.status(500).json({ message: "Internal server error", error: error.message });
+//     }
+// };
+
+
 
   
 
