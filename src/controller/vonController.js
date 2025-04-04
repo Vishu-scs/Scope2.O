@@ -473,7 +473,7 @@ const dealerUpload = async (req, res) => {
   
     try {
       const pool = await getPool1();
-      transaction = pool.transaction(); // Initialize transaction
+      transaction = await pool.transaction(); // Initialize transaction
   
       if (!req.file || req.file.length === 0) {
         return res.status(400).json({ message: "No files received" });
@@ -582,7 +582,7 @@ for (const loc of distinctLocations) {
     }
 }
 
-// console.log('Locations with IDs:', locationResults);
+console.log('Locations with IDs:', locationResults);
 
 const latestPartIDs = [];
 
@@ -605,7 +605,7 @@ SELECT partid
 FROM z_scope..part_master
 WHERE partnumber = (SELECT LatestPartNumber FROM LatestPartNumberCTE);
   `;
-  
+//   const queryLatestPartID = `select * from locationinfo`
   const queryResult = await pool.request().query(queryLatestPartID);
   
   if (queryResult.recordset.length) {
@@ -615,33 +615,10 @@ WHERE partnumber = (SELECT LatestPartNumber FROM LatestPartNumberCTE);
     });
   }
 }
+console.log('LatestPartIDs:', latestPartIDs);
 
-// console.log('LatestPartIDs:', latestPartIDs);
-
-// const maxvalue = [];
-// for (const partid of distinctPartid) {  // Ensure 'partid' comes from 'distinctPartid'
-//     const queryMaxvalue = `
-//       SELECT TOP 1 FeedbackID 
-//       FROM ${tableName}
-//       WHERE PartID = ${partid} 
-//       ORDER BY FeedbackDate DESC
-//     `;
-//   //   console.log("Executing Query:", queryPreviousFBID);  
-//     try {
-//       const previousFBResult = await pool.request().query(queryPreviousFBID);
-  
-//       if (previousFBResult.recordset.length) {
-//         previousFBIDs.push({
-//           Partid: partid,
-//           PreviousFBID: previousFBResult.recordset[0].FeedbackID
-//         });
-//       }
-//     } catch (fetchError) {
-//       console.error(`Error fetching PreviousFBID for PartID ${partid}:`, fetchError);
-//     }
-//   }
 const previousFBIDs = [];
-for (const partid of distinctPartid) {  // Ensure 'partid' comes from 'distinctPartid'
+for (const partid of distinctPartid) {  
   const queryPreviousFBID = `
     SELECT TOP 1 FeedbackID 
     FROM ${tableName}
@@ -662,48 +639,30 @@ for (const partid of distinctPartid) {  // Ensure 'partid' comes from 'distinctP
     console.error(`Error fetching PreviousFBID for PartID ${partid}:`, fetchError);
   }
 }
-const partNumberMappings = [];
-for (const partid of distinctPartid) {
-    const queryPartNumber = `
-        SELECT partnumber 
-        FROM z_scope..part_master 
-        WHERE partid = ${partid}
-    `;
-
-    const result = await pool.request().query(queryPartNumber);
-    if (result.recordset.length) {
-        partNumberMappings.push({
-            partid,
-            partnumber: result.recordset[0].partnumber
-        });
-    }
-}
-const maxValues = [];
-for (const item of cleanedData) {
-    const locationMapping = locationResults.find(l => l.location === item.Location);
-    const partNumberMapping = partNumberMappings.find(p => p.partid === item.Partid);
-    
-    if (!locationMapping || !partNumberMapping) continue; // Skip if no mapping found
-
-    const queryMaxValue = `
-        SELECT maxvalue 
-        FROM ${maxTable} 
-        WHERE partnumber = '${partNumberMapping.partnumber}' 
-        AND locationid = ${locationMapping.locationid}
-        and stockdate = (select top 1 stockdate from ${maxTable} order by stockdate desc)
-    `;
-// console.log(queryMaxValue);
-
-    const result = await pool.request().query(queryMaxValue);
-    if (result.recordset.length) {
-        maxValues.push({
-            partnumber: partNumberMapping.partnumber,
-            locationid: locationMapping.locationid,
-            maxvalue: result.recordset[0].maxvalue
-        });
-    }
-}
-// console.log(maxValues);
+console.log(previousFBIDs);
+let maxValueMapping = [];
+        for (const partid of distinctPartid) {
+            for (const location of locationResults) {
+                const queryMaxValue = `
+                    SELECT maxvalue FROM ${maxTable} 
+                    WHERE partid = ${partid} 
+                    AND locationid = ${location.locationid} 
+                    AND stockdate = (SELECT TOP 1 stockdate FROM ${maxTable} where partid = ${partid} ORDER BY stockdate DESC)
+                `;
+                const maxResult = await pool.request().query(queryMaxValue);
+                if (maxResult.recordset.length) {
+                    maxValueMapping.push({
+                        Partid: partid,
+                        Location: location.locationid,
+                        MaxValue: maxResult.recordset[0].maxvalue
+                    });
+                }
+                // console.log(queryMaxValue);
+                
+            }
+        }
+        console.log(maxValueMapping);
+        
 
 const invalidRecords = cleanedData.filter(item => {
     const locationMapping = locationResults.find(l => l.location === item.Location);
@@ -731,15 +690,17 @@ const formattedData = cleanedData.map(item => {
     const locationMapping = locationResults.find(l => l.location === item.Location);
     const latestpartidMapping = latestPartIDs.find(lp => lp.Partid === item.Partid);
     const partidPreviousFBIDMapping = previousFBIDs.find(pfb => pfb.Partid === item.Partid);  // Fix Matching
-    const partNumberMapping = partNumberMappings.find(p => p.partid === item.Partid);
-    const maxValueMapping = maxValues.find(mv => mv.partnumber === partNumberMapping?.partnumber && mv.locationid === locationMapping?.locationid);
+    const maxValueMappingItem = maxValueMapping.find(mv => mv.Partid === item.Partid);
+    // const partNumberMapping = partNumberMappings.find(p => p.partid === item.Partid);
+    // const maxValueMapping = maxValues.find(mv => mv.partnumber === partNumberMapping?.partnumber && mv.locationid === locationMapping?.locationid);
 
     return {
       brandid: brandMapping ? brandMapping.brandid : null,
       dealerid: dealerMapping ? dealerMapping.dealerid : null,
       locationid: locationMapping ? locationMapping.locationid : null,
     //   maxvalue: item.Maxvalue,
-    maxvalue: maxValueMapping ? maxValueMapping.maxvalue : null,
+    // maxvalue: maxValueMapping ? maxValueMapping.maxvalue : null,
+    maxvalue: maxValueMappingItem ? maxValueMappingItem.MaxValue : null, 
       partid: item.Partid,
       latestpartid: latestpartidMapping ? latestpartidMapping.LatestPartID : null,
       UserID: UserID,
@@ -763,11 +724,12 @@ if (invalidRecords.length > 0) {
 }
 // console.log(formattedData);
 
-// console.log("Formatted Data:", formattedData);
+console.log("Formatted Data:", formattedData);
+
 await transaction.begin(); // Start transaction
 await insertData(formattedData,tableName)  // Insert Function to insert formatted data into table
 await transaction.commit(); // Commit transaction
-    console.log(`Dealer Feedback INSERTED`);
+    // console.log(`Dealer Feedback INSERTED`);
     
       res.status(200).json({ message: "Data inserted successfully", data: formattedData });
 
